@@ -650,34 +650,42 @@ function App() {
       const audioBuffer = await getAudioBuffer();
       if (!audioBuffer) throw new Error('Não foi possível obter os dados de áudio');
 
-      // Create audio context for analysis
-      const offlineCtx = new OfflineAudioContext(2, audioBuffer.length, audioBuffer.sampleRate);
-      const source = offlineCtx.createBufferSource();
-      source.buffer = audioBuffer;
-      const analyser = offlineCtx.createAnalyser();
-      analyser.fftSize = 2048;
-      source.connect(analyser);
-      analyser.connect(offlineCtx.destination);
-      source.start();
-
       // Calculate frames
       const totalFrames = Math.ceil(audioDuration * renderFPS);
       const frameDuration = 1 / renderFPS;
-      const frequencyData = new Uint8Array(analyser.frequencyBinCount);
-      const timeData = new Uint8Array(analyser.frequencyBinCount);
+      const frequencyData = new Uint8Array(1024);
+      const timeData = new Uint8Array(1024);
 
-      // Setup MediaRecorder
-      const canvasStream = offscreenCanvas.captureStream(renderFPS);
+      // Create audio element for playback during recording
+      const audioForRecording = new Audio(audioElementRef.current?.src || '');
+      audioForRecording.crossOrigin = 'anonymous';
       
-      let mimeType = 'video/webm;codecs=vp9';
+      // Create audio context for mixing
+      const recordingAudioCtx = new AudioContext();
+      const audioSource = recordingAudioCtx.createMediaElementSource(audioForRecording);
+      const audioDestination = recordingAudioCtx.createMediaStreamDestination();
+      audioSource.connect(audioDestination);
+      audioSource.connect(recordingAudioCtx.destination); // Also play through speakers
+
+      // Setup canvas stream with manual frame capture
+      const canvasStream = offscreenCanvas.captureStream(0); // 0 = manual frame capture
+      const videoTrack = canvasStream.getVideoTracks()[0];
+      
+      // Combine video and audio tracks
+      const combinedStream = new MediaStream([
+        videoTrack,
+        ...audioDestination.stream.getAudioTracks()
+      ]);
+      
+      let mimeType = 'video/webm;codecs=vp9,opus';
       if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'video/webm;codecs=vp8';
+        mimeType = 'video/webm;codecs=vp8,opus';
         if (!MediaRecorder.isTypeSupported(mimeType)) {
           mimeType = 'video/webm';
         }
       }
 
-      const mediaRecorder = new MediaRecorder(canvasStream, {
+      const mediaRecorder = new MediaRecorder(combinedStream, {
         mimeType,
         videoBitsPerSecond: 8000000 // 8 Mbps for high quality
       });
@@ -690,10 +698,15 @@ function App() {
       mediaRecorder.start(100);
       setRenderStatus('rendering');
 
-      // Render frames
+      // Start audio playback
+      await audioForRecording.play();
+      const audioStartTime = performance.now();
+
+      // Render frames in real-time
       for (let frame = 0; frame < totalFrames; frame++) {
         if (renderCancel) {
           mediaRecorder.stop();
+          audioForRecording.pause();
           setIsRendering(false);
           setRenderStatus('idle');
           return;
@@ -702,8 +715,6 @@ function App() {
         const currentTime = frame * frameDuration;
         
         // Get audio data at this time
-        // Since we can't easily get frequency data at specific times from OfflineAudioContext,
-        // we'll use a simulated approach based on the audio buffer
         const sampleIndex = Math.floor(currentTime * audioBuffer.sampleRate);
         const channelData = audioBuffer.getChannelData(0);
         
@@ -741,18 +752,28 @@ function App() {
           currentTime
         });
 
+        // Request frame capture for this rendered frame
+        if ('requestFrame' in videoTrack) {
+          (videoTrack as any).requestFrame();
+        }
+
         // Update progress
         const progress = ((frame + 1) / totalFrames) * 100;
         setRenderProgress(progress);
 
-        // Yield to browser
-        if (frame % 5 === 0) {
-          await new Promise(resolve => setTimeout(resolve, 0));
+        // Wait for the next frame time to maintain real-time synchronization
+        const expectedTime = audioStartTime + (frame + 1) * frameDuration * 1000;
+        const currentTimeMs = performance.now();
+        const delay = expectedTime - currentTimeMs;
+        
+        if (delay > 0) {
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
 
       // Stop recording and create video
       setRenderStatus('encoding');
+      audioForRecording.pause();
       mediaRecorder.stop();
 
       await new Promise<void>((resolve) => {
@@ -1918,11 +1939,13 @@ function App() {
                   <div className="border-t border-white/10 pt-4">
                     <h4 className="text-xs font-medium text-white/70 mb-2">💡 Dicas</h4>
                     <div className="space-y-1.5 text-[11px] text-white/50">
-                      <p>• Renderização offline = qualidade máxima</p>
+                      <p>• Renderização em tempo real com áudio</p>
+                      <p>• 🔊 O áudio tocará durante a renderização</p>
                       <p>• Use arquivos de áudio (não microfone)</p>
                       <p>• 1080p @ 30fps recomendado para YouTube</p>
                       <p>• 4K @ 60fps para máxima qualidade</p>
                       <p>• Formato WebM compatível com editores</p>
+                      <p>• Não feche a aba durante a renderização</p>
                     </div>
                   </div>
 
