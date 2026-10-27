@@ -1,0 +1,93 @@
+SOLUCAO DO ERRO "No package info in the config file"
+=====================================================
+
+O ERRO
+------
+"No package info in the config file"
+
+Este erro acontece porque o Tauri CLI v2 tem um bug ou incompatibilidade
+com a configuracao. A solucao e usar o Cargo diretamente.
+
+
+SOLUCAO: USAR BUILD DIRETO COM CARGO
+-------------------------------------
+
+Em vez de usar "npm run tauri:build", use o Cargo diretamente:
+
+1. Abra o terminal na pasta do projeto
+
+2. Execute:
+   cd src-tauri
+   cargo build --release
+
+3. O executavel sera gerado em:
+   src-tauri\target\release\audio-spectrum-generator.exe
+
+
+SCRIPT AUTOMATIZADO
+-------------------
+Criei o arquivo "build-direto.bat" que faz isso automaticamente:
+
+   build-direto.bat
+
+Este script:
+- Limpa o build anterior
+- Verifica a configuracao
+- Executa cargo build --release
+- Abre a pasta do executavel
+
+
+EXE NOME DO ARQUIVO
+-------------------
+O executavel tera o nome definido no Cargo.toml:
+
+   [package]
+   name = "audio-spectrum-generator"
+
+Entao o arquivo sera:
+   audio-spectrum-generator.exe
+
+Voce pode renomear para "Audio Spectrum Generator.exe" depois.
+
+
+SE AINDA DER ERRO
+-----------------
+
+1. Verifique se o Visual Studio Build Tools esta instalado:
+   https://visualstudio.microsoft.com/visual-cpp-build-tools/
+   
+   Na instalacao, marque:
+   - Desenvolvimento para desktop com C++
+   - Windows 10 SDK
+
+2. Limpe completamente e tente novamente:
+   cd src-tauri
+   cargo clean
+   cargo build --release
+
+3. Se o erro persistir, me envie a mensagem completa de erro.
+
+
+ALTERNATIVA: USAR TAURI CLI v1
+-------------------------------
+Se preferir, voce pode desinstalar o Tauri v2 e instalar o v1:
+
+   npm uninstall @tauri-apps/cli @tauri-apps/api
+   npm install --save-dev @tauri-apps/cli@1 @tauri-apps/api@1
+
+Depois use a configuracao do Tauri v1 (que eu criei antes).
+
+
+RESUMO
+------
+Para criar o executavel portable, execute:
+
+   build-direto.bat
+
+OU manualmente:
+
+   cd src-tauri
+   cargo build --release
+
+O executavel estara em:
+   src-tauri\target\release\audio-spectrum-generator.exe

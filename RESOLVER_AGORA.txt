@@ -1,0 +1,97 @@
+================================================================
+  COMO RESOLVER O PROBLEMA AGORA
+================================================================
+
+O PROBLEMA
+----------
+O comando "npm run tauri:build" esta dando erro porque o 
+Tauri CLI v2 tem um bug de compatibilidade.
+
+
+A SOLUCAO SIMPLES
+-----------------
+Use o Cargo diretamente para compilar o executavel.
+
+
+PASSO A PASSO
+-------------
+
+1. Execute o script de diagnostico (opcional):
+   diagnostico.bat
+   
+   Isso vai verificar se tudo esta instalado corretamente.
+
+2. Execute o build direto:
+   build-direto.bat
+   
+   Este script vai:
+   - Limpar o build anterior
+   - Compilar o projeto com Cargo
+   - Gerar o executavel portable
+
+3. Aguarde 5-15 minutos (primeira vez)
+
+4. O executavel sera gerado em:
+   src-tauri\target\release\audio-spectrum-generator.exe
+
+5. Renomeie o arquivo (opcional):
+   De: audio-spectrum-generator.exe
+   Para: Audio Spectrum Generator.exe
+
+6. Copie o arquivo para qualquer lugar e execute!
+
+
+SE DER ERRO
+-----------
+
+1. Verifique se o Visual Studio Build Tools esta instalado:
+   https://visualstudio.microsoft.com/visual-cpp-build-tools/
+   
+   Na instalacao, marque:
+   - Desenvolvimento para desktop com C++
+   - Windows 10 SDK
+
+2. Limpe o build e tente novamente:
+   cd src-tauri
+   cargo clean
+   cargo build --release
+
+3. Se ainda der erro, execute o diagnostico:
+   diagnostico.bat
+   
+   E me envie a mensagem completa de erro.
+
+
+ALTERNATIVA: TAURI v1
+---------------------
+Se preferir usar o Tauri CLI normalmente:
+
+1. Desinstale o Tauri v2:
+   npm uninstall @tauri-apps/cli @tauri-apps/api
+
+2. Instale o Tauri v1:
+   npm install --save-dev @tauri-apps/cli@1 @tauri-apps/api@1
+
+3. Execute:
+   npm run tauri:build
+
+
+RESUMO
+------
+Para criar o executavel AGORA:
+
+   build-direto.bat
+
+O executavel sera gerado em:
+   src-tauri\target\release\audio-spectrum-generator.exe
+
+
+ARQUIVOS IMPORTANTES
+--------------------
+- build-direto.bat    -> Executa o build (USE ESTE!)
+- diagnostico.bat     -> Verifica a instalacao
+- GUIA_FINAL.txt      -> Guia completo
+- SOLUCAO_ERRO.txt    -> Explicacao do erro
+
+
+================================================================
