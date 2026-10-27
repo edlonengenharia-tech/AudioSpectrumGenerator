@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Visualizer, { TextOverlay, ImageOverlay, renderFrame } from './components/Visualizer';
 
-type VisMode = 'bars' | 'wave' | 'circular' | 'particles' | 'equalizer3d' | 'galaxy' | 'lightning';
+type VisMode = 'bars' | 'wave' | 'circular' | 'particles' | 'equalizer3d' | 'galaxy' | 'lightning' | 'diamond';
 type TabType = 'visualizer' | 'text' | 'templates' | 'background' | 'settings' | 'export';
 
 interface Template {
@@ -43,6 +43,7 @@ const VIS_MODES: { id: VisMode; name: string; icon: string }[] = [
   { id: 'equalizer3d', name: 'EQ 3D', icon: '🔥' },
   { id: 'galaxy', name: 'Galaxy', icon: '🌌' },
   { id: 'lightning', name: 'Lightning', icon: '⚡' },
+  { id: 'diamond', name: 'Diamante', icon: '💎' },
 ];
 
 const DEFAULT_FONTS = [
@@ -87,6 +88,9 @@ interface VisualSettings {
   sepia: number;
   grayscale: number;
   invert: number;
+  // Spectrum position
+  spectrumX: number;
+  spectrumY: number;
 }
 
 const DEFAULT_VISUAL_SETTINGS: VisualSettings = {
@@ -122,6 +126,9 @@ const DEFAULT_VISUAL_SETTINGS: VisualSettings = {
   sepia: 0,
   grayscale: 0,
   invert: 0,
+  // Spectrum position defaults
+  spectrumX: 0,
+  spectrumY: 0,
 };
 
 const ANIMATIONS = [
@@ -157,6 +164,8 @@ function App() {
   const [audioLevel, setAudioLevel] = useState(0);
   const [colors, setColors] = useState(COLOR_PRESETS[0]);
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
+  const [backgroundVideo, setBackgroundVideo] = useState<string | null>(null);
+  const backgroundVideoRef = useRef<HTMLVideoElement | null>(null);
   const [textOverlays, setTextOverlays] = useState<TextOverlay[]>([]);
   const [selectedText, setSelectedText] = useState<string | null>(null);
   const [fileName, setFileName] = useState('');
@@ -303,7 +312,16 @@ function App() {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (ev) => setBackgroundImage(ev.target?.result as string);
+      reader.onload = (ev) => {
+        const result = ev.target?.result as string;
+        if (file.type.startsWith('video/')) {
+          setBackgroundVideo(result);
+          setBackgroundImage(null);
+        } else {
+          setBackgroundImage(result);
+          setBackgroundVideo(null);
+        }
+      };
       reader.readAsDataURL(file);
     }
   };
@@ -931,6 +949,7 @@ function App() {
             smoothing={smoothing}
             audioLevel={audioLevel}
             backgroundImage={backgroundImage}
+            backgroundVideo={backgroundVideo}
             textOverlays={textOverlays}
             visualSettings={visualSettings}
             environmentalEffects={environmentalEffects}
@@ -1588,7 +1607,31 @@ function App() {
                         onClick={() => setBackgroundImage(null)}
                         className="w-full py-2 rounded-lg bg-red-500/20 text-red-400 text-xs hover:bg-red-500/30 transition-all"
                       >
-                        Remover Background
+                        Remover Imagem
+                      </button>
+                    </div>
+                  )}
+                  
+                  {backgroundVideo && (
+                    <div className="space-y-2">
+                      <div className="rounded-xl overflow-hidden border border-white/10 relative">
+                        <video 
+                          src={backgroundVideo} 
+                          className="w-full h-32 object-cover"
+                          muted
+                          loop
+                          autoPlay
+                          playsInline
+                        />
+                        <div className="absolute top-2 right-2 bg-black/50 px-2 py-1 rounded text-[10px] text-white">
+                          🎬 Vídeo
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setBackgroundVideo(null)}
+                        className="w-full py-2 rounded-lg bg-red-500/20 text-red-400 text-xs hover:bg-red-500/30 transition-all"
+                      >
+                        Remover Vídeo
                       </button>
                     </div>
                   )}
@@ -1758,6 +1801,39 @@ function App() {
                               className="w-full"
                             />
                           </div>
+                        </div>
+
+                        {/* Position */}
+                        <div className="space-y-2 border-t border-white/10 pt-3">
+                          <h4 className="text-[11px] font-medium text-white/70">📍 Posição do Spectrum</h4>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Posição X: {visualSettings.spectrumX}px</label>
+                            <input
+                              type="range"
+                              min="-500"
+                              max="500"
+                              value={visualSettings.spectrumX}
+                              onChange={e => setVisualSettings({ ...visualSettings, spectrumX: Number(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Posição Y: {visualSettings.spectrumY}px</label>
+                            <input
+                              type="range"
+                              min="-500"
+                              max="500"
+                              value={visualSettings.spectrumY}
+                              onChange={e => setVisualSettings({ ...visualSettings, spectrumY: Number(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                          <button
+                            onClick={() => setVisualSettings({ ...visualSettings, spectrumX: 0, spectrumY: 0 })}
+                            className="w-full py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 text-[10px] transition-all"
+                          >
+                            🎯 Centralizar
+                          </button>
                         </div>
 
                         {/* Transform */}

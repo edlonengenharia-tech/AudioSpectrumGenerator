@@ -8,6 +8,7 @@ interface VisualizerProps {
   smoothing: number;
   audioLevel: number;
   backgroundImage: string | null;
+  backgroundVideo: string | null;
   textOverlays: TextOverlay[];
   visualSettings: {
     barCount: number;
@@ -42,6 +43,9 @@ interface VisualizerProps {
     sepia: number;
     grayscale: number;
     invert: number;
+    // Spectrum position
+    spectrumX: number;
+    spectrumY: number;
   };
   // Environmental effects
   environmentalEffects: {
@@ -103,6 +107,7 @@ const Visualizer: React.FC<VisualizerProps> = ({
   smoothing,
   audioLevel,
   backgroundImage,
+  backgroundVideo,
   textOverlays,
   visualSettings,
   environmentalEffects,
@@ -114,6 +119,8 @@ const Visualizer: React.FC<VisualizerProps> = ({
   const timeRef = useRef(0);
   const bgImageRef = useRef<HTMLImageElement | null>(null);
   const bgLoadedRef = useRef(false);
+  const bgVideoRef = useRef<HTMLVideoElement | null>(null);
+  const bgVideoLoadedRef = useRef(false);
   
   // Environmental particles
   const envParticlesRef = useRef<{
@@ -157,6 +164,32 @@ const Visualizer: React.FC<VisualizerProps> = ({
       bgLoadedRef.current = false;
     }
   }, [backgroundImage]);
+
+  // Load background video when it changes
+  useEffect(() => {
+    if (backgroundVideo) {
+      const video = document.createElement('video');
+      video.crossOrigin = 'anonymous';
+      video.src = backgroundVideo;
+      video.loop = true;
+      video.muted = true;
+      video.playsInline = true;
+      video.onloadeddata = () => {
+        bgVideoRef.current = video;
+        bgVideoLoadedRef.current = true;
+        video.play();
+      };
+      video.onerror = () => {
+        bgVideoLoadedRef.current = false;
+      };
+    } else {
+      if (bgVideoRef.current) {
+        bgVideoRef.current.pause();
+      }
+      bgVideoRef.current = null;
+      bgVideoLoadedRef.current = false;
+    }
+  }, [backgroundVideo]);
 
   // Load image overlays
   useEffect(() => {
@@ -207,7 +240,13 @@ const Visualizer: React.FC<VisualizerProps> = ({
       ctx.filter = `brightness(${visualSettings.brightness}%) contrast(${visualSettings.contrast}%) saturate(${visualSettings.saturate}%) hue-rotate(${visualSettings.hueRotate}deg) sepia(${visualSettings.sepia}%) grayscale(${visualSettings.grayscale}%) invert(${visualSettings.invert}%)`;
     }
     
-    if (backgroundImage && bgLoadedRef.current && bgImageRef.current) {
+    if (backgroundVideo && bgVideoLoadedRef.current && bgVideoRef.current) {
+      ctx.globalAlpha = visualSettings.backgroundOpacity / 100;
+      ctx.drawImage(bgVideoRef.current, 0, 0, width, height);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = `rgba(0, 0, 0, ${0.3 * (1 - visualSettings.backgroundOpacity / 100)})`;
+      ctx.fillRect(0, 0, width, height);
+    } else if (backgroundImage && bgLoadedRef.current && bgImageRef.current) {
       ctx.globalAlpha = visualSettings.backgroundOpacity / 100;
       ctx.drawImage(bgImageRef.current, 0, 0, width, height);
       ctx.globalAlpha = 1;
@@ -295,6 +334,9 @@ const Visualizer: React.FC<VisualizerProps> = ({
         break;
       case 'equalizer3d':
         drawEqualizer3D(ctx, dataArray, width, height, bufferLength);
+        break;
+      case 'diamond':
+        drawDiamond(ctx, dataArray, width, height, bufferLength);
         break;
       case 'galaxy':
         drawGalaxy(ctx, dataArray, width, height, bufferLength);
@@ -408,6 +450,9 @@ const Visualizer: React.FC<VisualizerProps> = ({
 
     ctx.save();
     
+    // Apply spectrum position
+    ctx.translate(visualSettings.spectrumX, visualSettings.spectrumY);
+    
     // Apply rotation and zoom
     if (visualSettings.rotation !== 0 || visualSettings.zoom !== 100) {
       ctx.translate(width / 2, height / 2);
@@ -481,6 +526,9 @@ const Visualizer: React.FC<VisualizerProps> = ({
     
     ctx.save();
     
+    // Apply spectrum position
+    ctx.translate(visualSettings.spectrumX, visualSettings.spectrumY);
+    
     // Apply rotation and zoom
     if (visualSettings.rotation !== 0 || visualSettings.zoom !== 100) {
       ctx.translate(width / 2, height / 2);
@@ -493,13 +541,28 @@ const Visualizer: React.FC<VisualizerProps> = ({
       ctx.filter = `blur(${visualSettings.blurAmount}px)`;
     }
 
-    // Multiple wave layers
+    // Multiple wave layers with smoothing
     for (let layer = 0; layer < waveLayers; layer++) {
       ctx.beginPath();
       const sliceWidth = width / bufferLength;
+      
+      // Apply smoothing by averaging nearby points
+      const smoothingWindow = 3;
 
       for (let i = 0; i < bufferLength; i++) {
-        const v = timeData[i] / 128.0;
+        // Average nearby points for smoother wave
+        let sum = 0;
+        let count = 0;
+        for (let j = -smoothingWindow; j <= smoothingWindow; j++) {
+          const idx = i + j;
+          if (idx >= 0 && idx < bufferLength) {
+            sum += timeData[idx];
+            count++;
+          }
+        }
+        const smoothedValue = sum / count;
+        
+        const v = smoothedValue / 128.0;
         const y = (v * height) / 2 + layer * 20;
         const x = i * sliceWidth;
 
@@ -530,6 +593,9 @@ const Visualizer: React.FC<VisualizerProps> = ({
     const bars = visualSettings.circularRings || 180;
 
     ctx.save();
+    
+    // Apply spectrum position
+    ctx.translate(visualSettings.spectrumX, visualSettings.spectrumY);
     
     // Apply rotation and zoom
     if (visualSettings.rotation !== 0 || visualSettings.zoom !== 100) {
@@ -646,13 +712,16 @@ const Visualizer: React.FC<VisualizerProps> = ({
   };
 
   const drawEqualizer3D = (ctx: CanvasRenderingContext2D, dataArray: Uint8Array, width: number, height: number, bufferLength: number) => {
-    const rows = 16;
-    const cols = visualSettings.barCount || 32;
+    const rows = 8; // Reduced from 16 for better performance
+    const cols = Math.min(24, visualSettings.barCount || 24); // Reduced from 32
     const cellW = width / cols;
-    const cellH = 30;
+    const cellH = 25; // Reduced from 30
     const step = Math.floor(bufferLength / cols);
 
     ctx.save();
+    
+    // Apply spectrum position
+    ctx.translate(visualSettings.spectrumX, visualSettings.spectrumY);
     
     if (visualSettings.rotation !== 0 || visualSettings.zoom !== 100) {
       ctx.translate(width / 2, height / 2);
@@ -661,38 +730,41 @@ const Visualizer: React.FC<VisualizerProps> = ({
       ctx.translate(-width / 2, -height / 2);
     }
 
+    // Disable shadow for better performance
+    ctx.shadowBlur = 0;
+
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const dataIndex = col * step;
         const value = dataArray[dataIndex] * (sensitivity / 100);
-        const barH = (value / 255) * 100;
+        const barH = (value / 255) * 80; // Reduced from 100
 
-        const x = col * cellW + (row * 5);
-        const y = height - 50 - row * cellH - barH + row * 10;
+        const x = col * cellW + (row * 4); // Reduced offset from 5 to 4
+        const y = height - 40 - row * cellH - barH + row * 8; // Reduced spacing
 
-        const alpha = 1 - (row / rows) * 0.5;
+        const alpha = 1 - (row / rows) * 0.4; // Reduced fade
         const hue = (col / cols) * 120 + 250;
 
+        // Front face
         ctx.fillStyle = `hsla(${hue}, 80%, 50%, ${alpha})`;
-        ctx.shadowColor = `hsl(${hue}, 80%, 50%)`;
-        ctx.shadowBlur = 5 * (visualSettings.glowIntensity / 100);
+        ctx.fillRect(x, y, cellW - 3, barH);
 
-        ctx.fillRect(x, y, cellW - 4, barH);
-
-        ctx.fillStyle = `hsla(${hue}, 80%, 70%, ${alpha})`;
+        // Top face (simplified)
+        ctx.fillStyle = `hsla(${hue}, 80%, 65%, ${alpha})`;
         ctx.beginPath();
         ctx.moveTo(x, y);
-        ctx.lineTo(x + 5, y - 5);
-        ctx.lineTo(x + cellW - 4 + 5, y - 5);
-        ctx.lineTo(x + cellW - 4, y);
+        ctx.lineTo(x + 4, y - 4);
+        ctx.lineTo(x + cellW - 3 + 4, y - 4);
+        ctx.lineTo(x + cellW - 3, y);
         ctx.fill();
 
-        ctx.fillStyle = `hsla(${hue}, 80%, 30%, ${alpha})`;
+        // Right face (simplified)
+        ctx.fillStyle = `hsla(${hue}, 80%, 35%, ${alpha})`;
         ctx.beginPath();
-        ctx.moveTo(x + cellW - 4, y);
-        ctx.lineTo(x + cellW - 4 + 5, y - 5);
-        ctx.lineTo(x + cellW - 4 + 5, y + barH - 5);
-        ctx.lineTo(x + cellW - 4, y + barH);
+        ctx.moveTo(x + cellW - 3, y);
+        ctx.lineTo(x + cellW - 3 + 4, y - 4);
+        ctx.lineTo(x + cellW - 3 + 4, y + barH - 4);
+        ctx.lineTo(x + cellW - 3, y + barH);
         ctx.fill();
       }
     }
@@ -752,6 +824,84 @@ const Visualizer: React.FC<VisualizerProps> = ({
     
     ctx.restore();
     ctx.shadowBlur = 0;
+  };
+
+  const drawDiamond = (ctx: CanvasRenderingContext2D, dataArray: Uint8Array, width: number, height: number, bufferLength: number) => {
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const bars = 64;
+    const step = Math.floor(bufferLength / bars);
+    const maxRadius = Math.min(width, height) * 0.35;
+
+    ctx.save();
+    
+    // Apply spectrum position
+    ctx.translate(visualSettings.spectrumX, visualSettings.spectrumY);
+    
+    // Apply rotation and zoom
+    if (visualSettings.rotation !== 0 || visualSettings.zoom !== 100) {
+      ctx.translate(centerX, centerY);
+      ctx.rotate((visualSettings.rotation * Math.PI) / 180);
+      ctx.scale(visualSettings.zoom / 100, visualSettings.zoom / 100);
+      ctx.translate(-centerX, -centerY);
+    }
+
+    if (visualSettings.blurAmount > 0) {
+      ctx.filter = `blur(${visualSettings.blurAmount}px)`;
+    }
+
+    // Draw diamond-shaped bars
+    for (let i = 0; i < bars; i++) {
+      const angle = (i / bars) * Math.PI * 2;
+      const dataIndex = Math.floor((i / bars) * bufferLength);
+      const value = dataArray[dataIndex] * (sensitivity / 100);
+      const barLength = (value / 255) * maxRadius;
+
+      // Calculate diamond points
+      const innerRadius = maxRadius * 0.3;
+      const outerRadius = innerRadius + barLength;
+      
+      const x1 = centerX + Math.cos(angle - 0.05) * innerRadius;
+      const y1 = centerY + Math.sin(angle - 0.05) * innerRadius;
+      const x2 = centerX + Math.cos(angle) * outerRadius;
+      const y2 = centerY + Math.sin(angle) * outerRadius;
+      const x3 = centerX + Math.cos(angle + 0.05) * innerRadius;
+      const y3 = centerY + Math.sin(angle + 0.05) * innerRadius;
+
+      // Create gradient for each bar
+      const hue = (i / bars) * 360;
+      const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+      gradient.addColorStop(0, colors.primary);
+      gradient.addColorStop(0.5, colors.secondary);
+      gradient.addColorStop(1, colors.tertiary);
+
+      ctx.fillStyle = gradient;
+      ctx.shadowColor = `hsl(${hue}, 80%, 60%)`;
+      ctx.shadowBlur = (value / 15) * (visualSettings.glowIntensity / 100);
+
+      // Draw diamond shape
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.lineTo(x3, y3);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Draw center glow
+    const avgLevel = dataArray.reduce((a, b) => a + b, 0) / bufferLength;
+    const centerGrad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, maxRadius * 0.3);
+    centerGrad.addColorStop(0, colors.primary + '60');
+    centerGrad.addColorStop(0.5, colors.secondary + '30');
+    centerGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = centerGrad;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, maxRadius * 0.3 + (avgLevel / 255) * 20, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
+    ctx.shadowBlur = 0;
+    ctx.filter = 'none';
   };
 
   const drawLightning = (ctx: CanvasRenderingContext2D, dataArray: Uint8Array, width: number, height: number, bufferLength: number) => {
