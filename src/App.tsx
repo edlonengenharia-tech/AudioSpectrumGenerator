@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Visualizer, { TextOverlay, ImageOverlay, renderFrame } from './components/Visualizer';
 
 type VisMode = 'bars' | 'wave' | 'circular' | 'particles' | 'equalizer3d' | 'galaxy' | 'lightning';
-type TabType = 'visualizer' | 'text' | 'templates' | 'background' | 'settings' | 'extras' | 'export';
+type TabType = 'visualizer' | 'text' | 'templates' | 'background' | 'settings' | 'export';
 
 interface Template {
   id: string;
@@ -995,7 +995,6 @@ function App() {
                 { id: 'templates' as TabType, icon: '📑', label: 'Modelos' },
                 { id: 'background' as TabType, icon: '🖼️', label: 'Fundo' },
                 { id: 'settings' as TabType, icon: '⚙️', label: 'Config' },
-                { id: 'extras' as TabType, icon: '✨', label: 'Extras' },
                 { id: 'export' as TabType, icon: '📤', label: 'Export' },
               ].map(tab => (
                 <button
@@ -1080,6 +1079,277 @@ function App() {
                           {m.name}
                         </button>
                       ))}
+                    </div>
+                  </div>
+
+                  {/* Environmental Effects */}
+                  <div className="border-t border-white/10 pt-4 space-y-3">
+                    <h3 className="text-sm font-semibold text-white/90">✨ Efeitos Ambientais</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setEnvironmentalEffects({ ...environmentalEffects, petals: !environmentalEffects.petals })}
+                        className={`p-3 rounded-xl text-xs font-medium transition-all ${
+                          environmentalEffects.petals
+                            ? 'bg-pink-500/20 text-pink-300 border border-pink-500/50'
+                            : 'glass-light hover:bg-white/10 text-white/60'
+                        }`}
+                      >
+                        <span className="text-lg block mb-1">🌸</span>
+                        Pétalas
+                      </button>
+                      <button
+                        onClick={() => setEnvironmentalEffects({ ...environmentalEffects, rain: !environmentalEffects.rain })}
+                        className={`p-3 rounded-xl text-xs font-medium transition-all ${
+                          environmentalEffects.rain
+                            ? 'bg-blue-500/20 text-blue-300 border border-blue-500/50'
+                            : 'glass-light hover:bg-white/10 text-white/60'
+                        }`}
+                      >
+                        <span className="text-lg block mb-1">🌧️</span>
+                        Chuva
+                      </button>
+                      <button
+                        onClick={() => setEnvironmentalEffects({ ...environmentalEffects, snow: !environmentalEffects.snow })}
+                        className={`p-3 rounded-xl text-xs font-medium transition-all ${
+                          environmentalEffects.snow
+                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50'
+                            : 'glass-light hover:bg-white/10 text-white/60'
+                        }`}
+                      >
+                        <span className="text-lg block mb-1">❄️</span>
+                        Neve
+                      </button>
+                      <button
+                        onClick={() => setEnvironmentalEffects({ ...environmentalEffects, bubbles: !environmentalEffects.bubbles })}
+                        className={`p-3 rounded-xl text-xs font-medium transition-all ${
+                          environmentalEffects.bubbles
+                            ? 'bg-purple-500/20 text-purple-300 border border-purple-500/50'
+                            : 'glass-light hover:bg-white/10 text-white/60'
+                        }`}
+                      >
+                        <span className="text-lg block mb-1">🫧</span>
+                        Bolhas
+                      </button>
+                      <button
+                        onClick={() => setEnvironmentalEffects({ ...environmentalEffects, stars: !environmentalEffects.stars })}
+                        className={`p-3 rounded-xl text-xs font-medium transition-all ${
+                          environmentalEffects.stars
+                            ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/50'
+                            : 'glass-light hover:bg-white/10 text-white/60'
+                        }`}
+                      >
+                        <span className="text-lg block mb-1">⭐</span>
+                        Estrelas
+                      </button>
+                      <button
+                        onClick={() => setEnvironmentalEffects({ ...environmentalEffects, fireflies: !environmentalEffects.fireflies })}
+                        className={`p-3 rounded-xl text-xs font-medium transition-all ${
+                          environmentalEffects.fireflies
+                            ? 'bg-green-500/20 text-green-300 border border-green-500/50'
+                            : 'glass-light hover:bg-white/10 text-white/60'
+                        }`}
+                      >
+                        <span className="text-lg block mb-1">✨</span>
+                        Vagalumes
+                      </button>
+                      <button
+                        onClick={() => setEnvironmentalEffects({ ...environmentalEffects, leaves: !environmentalEffects.leaves })}
+                        className={`p-3 rounded-xl text-xs font-medium transition-all ${
+                          environmentalEffects.leaves
+                            ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50'
+                            : 'glass-light hover:bg-white/10 text-white/60'
+                        }`}
+                      >
+                        <span className="text-lg block mb-1">🍂</span>
+                        Folhas
+                      </button>
+                      <button
+                        onClick={() => setEnvironmentalEffects({ ...environmentalEffects, confetti: !environmentalEffects.confetti })}
+                        className={`p-3 rounded-xl text-xs font-medium transition-all ${
+                          environmentalEffects.confetti
+                            ? 'bg-red-500/20 text-red-300 border border-red-500/50'
+                            : 'glass-light hover:bg-white/10 text-white/60'
+                        }`}
+                      >
+                        <span className="text-lg block mb-1">🎊</span>
+                        Confete
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Image Overlays */}
+                  <div className="border-t border-white/10 pt-4 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-sm font-semibold text-white/90">🖼️ Imagens e Logos</h3>
+                      <button
+                        onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.accept = 'image/*,image/gif';
+                          input.onchange = (e) => {
+                            const file = (e.target as HTMLInputElement).files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const img = new Image();
+                                img.onload = () => {
+                                  const newOverlay: ImageOverlay = {
+                                    id: Date.now().toString(),
+                                    src: ev.target?.result as string,
+                                    x: 50,
+                                    y: 50,
+                                    width: 20,
+                                    height: 20 * (img.naturalHeight / img.naturalWidth),
+                                    opacity: 100,
+                                    animated: file.type === 'image/gif',
+                                    loop: true,
+                                    rotation: 0,
+                                    preserveAspectRatio: true,
+                                    naturalWidth: img.naturalWidth,
+                                    naturalHeight: img.naturalHeight,
+                                  };
+                                  setImageOverlays([...imageOverlays, newOverlay]);
+                                };
+                                img.src = ev.target?.result as string;
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          };
+                          input.click();
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-purple-500/20 text-purple-300 text-xs hover:bg-purple-500/30 transition-all"
+                      >
+                        + Adicionar
+                      </button>
+                    </div>
+
+                    {/* Image overlays list */}
+                    <div className="space-y-2">
+                      {imageOverlays.map(overlay => (
+                        <div key={overlay.id} className="p-3 rounded-lg glass-light space-y-2">
+                          <div className="flex items-center gap-2">
+                            <img src={overlay.src} alt="Overlay" className="w-12 h-12 object-contain rounded" />
+                            <div className="flex-1">
+                              <p className="text-[10px] text-white/60">
+                                {overlay.animated ? '🎞️ GIF Animado' : '🖼️ Imagem'}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => setImageOverlays(imageOverlays.filter(o => o.id !== overlay.id))}
+                              className="text-red-400 hover:text-red-300 text-xs"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[9px] text-white/50 block mb-1">Posição X: {overlay.x}%</label>
+                              <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={overlay.x}
+                                onChange={e => setImageOverlays(imageOverlays.map(o => o.id === overlay.id ? { ...o, x: Number(e.target.value) } : o))}
+                                className="w-full"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] text-white/50 block mb-1">Posição Y: {overlay.y}%</label>
+                              <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={overlay.y}
+                                onChange={e => setImageOverlays(imageOverlays.map(o => o.id === overlay.id ? { ...o, y: Number(e.target.value) } : o))}
+                                className="w-full"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[9px] text-white/50 block mb-1">Largura: {overlay.width}%</label>
+                              <input
+                                type="range"
+                                min="5"
+                                max="100"
+                                value={overlay.width}
+                                onChange={e => {
+                                  const newWidth = Number(e.target.value);
+                                  setImageOverlays(imageOverlays.map(o => {
+                                    if (o.id !== overlay.id) return o;
+                                    if (o.preserveAspectRatio && o.naturalWidth > 0) {
+                                      const aspectRatio = o.naturalHeight / o.naturalWidth;
+                                      return { ...o, width: newWidth, height: newWidth * aspectRatio };
+                                    }
+                                    return { ...o, width: newWidth };
+                                  }));
+                                }}
+                                className="w-full"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] text-white/50 block mb-1">Altura: {overlay.height.toFixed(1)}%</label>
+                              <input
+                                type="range"
+                                min="5"
+                                max="100"
+                                value={overlay.height}
+                                disabled={overlay.preserveAspectRatio}
+                                onChange={e => setImageOverlays(imageOverlays.map(o => o.id === overlay.id ? { ...o, height: Number(e.target.value) } : o))}
+                                className="w-full disabled:opacity-50"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[9px] text-white/50 block mb-1">Opacidade: {overlay.opacity}%</label>
+                              <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={overlay.opacity}
+                                onChange={e => setImageOverlays(imageOverlays.map(o => o.id === overlay.id ? { ...o, opacity: Number(e.target.value) } : o))}
+                                className="w-full"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] text-white/50 block mb-1">Rotação: {overlay.rotation}°</label>
+                              <input
+                                type="range"
+                                min="-180"
+                                max="180"
+                                value={overlay.rotation}
+                                onChange={e => setImageOverlays(imageOverlays.map(o => o.id === overlay.id ? { ...o, rotation: Number(e.target.value) } : o))}
+                                className="w-full"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="text-[9px] text-white/60">🔒 Manter Proporção</span>
+                            <button
+                              onClick={() => setImageOverlays(imageOverlays.map(o => o.id === overlay.id ? { 
+                                ...o, 
+                                preserveAspectRatio: !o.preserveAspectRatio,
+                                height: !o.preserveAspectRatio && o.naturalWidth > 0 
+                                  ? o.width * (o.naturalHeight / o.naturalWidth) 
+                                  : o.height
+                              } : o))}
+                              className={`w-10 h-5 rounded-full transition-all ${overlay.preserveAspectRatio ? 'bg-purple-500' : 'bg-white/20'}`}
+                            >
+                              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${overlay.preserveAspectRatio ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {imageOverlays.length === 0 && (
+                        <p className="text-[10px] text-white/40 text-center py-4">
+                          Nenhuma imagem adicionada. Clique em "Adicionar" para upload de logos ou imagens.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1897,295 +2167,6 @@ function App() {
                       >
                         🌌 Galaxy
                       </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'extras' && (
-                <div className="space-y-4">
-                  <h3 className="text-sm font-semibold text-white/90">✨ Efeitos Extras</h3>
-                  
-                  {/* Environmental Effects */}
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-medium text-white/70">🌸 Efeitos Ambientais</h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => setEnvironmentalEffects({ ...environmentalEffects, petals: !environmentalEffects.petals })}
-                        className={`p-3 rounded-xl text-xs font-medium transition-all ${
-                          environmentalEffects.petals
-                            ? 'bg-pink-500/20 text-pink-300 border border-pink-500/50'
-                            : 'glass-light hover:bg-white/10 text-white/60'
-                        }`}
-                      >
-                        <span className="text-lg block mb-1">🌸</span>
-                        Pétalas
-                      </button>
-                      <button
-                        onClick={() => setEnvironmentalEffects({ ...environmentalEffects, rain: !environmentalEffects.rain })}
-                        className={`p-3 rounded-xl text-xs font-medium transition-all ${
-                          environmentalEffects.rain
-                            ? 'bg-blue-500/20 text-blue-300 border border-blue-500/50'
-                            : 'glass-light hover:bg-white/10 text-white/60'
-                        }`}
-                      >
-                        <span className="text-lg block mb-1">🌧️</span>
-                        Chuva
-                      </button>
-                      <button
-                        onClick={() => setEnvironmentalEffects({ ...environmentalEffects, snow: !environmentalEffects.snow })}
-                        className={`p-3 rounded-xl text-xs font-medium transition-all ${
-                          environmentalEffects.snow
-                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50'
-                            : 'glass-light hover:bg-white/10 text-white/60'
-                        }`}
-                      >
-                        <span className="text-lg block mb-1">❄️</span>
-                        Neve
-                      </button>
-                      <button
-                        onClick={() => setEnvironmentalEffects({ ...environmentalEffects, bubbles: !environmentalEffects.bubbles })}
-                        className={`p-3 rounded-xl text-xs font-medium transition-all ${
-                          environmentalEffects.bubbles
-                            ? 'bg-purple-500/20 text-purple-300 border border-purple-500/50'
-                            : 'glass-light hover:bg-white/10 text-white/60'
-                        }`}
-                      >
-                        <span className="text-lg block mb-1">🫧</span>
-                        Bolhas
-                      </button>
-                      <button
-                        onClick={() => setEnvironmentalEffects({ ...environmentalEffects, stars: !environmentalEffects.stars })}
-                        className={`p-3 rounded-xl text-xs font-medium transition-all ${
-                          environmentalEffects.stars
-                            ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/50'
-                            : 'glass-light hover:bg-white/10 text-white/60'
-                        }`}
-                      >
-                        <span className="text-lg block mb-1">⭐</span>
-                        Estrelas
-                      </button>
-                      <button
-                        onClick={() => setEnvironmentalEffects({ ...environmentalEffects, fireflies: !environmentalEffects.fireflies })}
-                        className={`p-3 rounded-xl text-xs font-medium transition-all ${
-                          environmentalEffects.fireflies
-                            ? 'bg-green-500/20 text-green-300 border border-green-500/50'
-                            : 'glass-light hover:bg-white/10 text-white/60'
-                        }`}
-                      >
-                        <span className="text-lg block mb-1">✨</span>
-                        Vagalumes
-                      </button>
-                      <button
-                        onClick={() => setEnvironmentalEffects({ ...environmentalEffects, leaves: !environmentalEffects.leaves })}
-                        className={`p-3 rounded-xl text-xs font-medium transition-all ${
-                          environmentalEffects.leaves
-                            ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50'
-                            : 'glass-light hover:bg-white/10 text-white/60'
-                        }`}
-                      >
-                        <span className="text-lg block mb-1">🍂</span>
-                        Folhas
-                      </button>
-                      <button
-                        onClick={() => setEnvironmentalEffects({ ...environmentalEffects, confetti: !environmentalEffects.confetti })}
-                        className={`p-3 rounded-xl text-xs font-medium transition-all ${
-                          environmentalEffects.confetti
-                            ? 'bg-red-500/20 text-red-300 border border-red-500/50'
-                            : 'glass-light hover:bg-white/10 text-white/60'
-                        }`}
-                      >
-                        <span className="text-lg block mb-1">🎊</span>
-                        Confete
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Image Overlays */}
-                  <div className="border-t border-white/10 pt-4 space-y-3">
-                    <div className="flex justify-between items-center">
-                      <h4 className="text-xs font-medium text-white/70">🖼️ Imagens e Logos</h4>
-                      <button
-                        onClick={() => {
-                          const input = document.createElement('input');
-                          input.type = 'file';
-                          input.accept = 'image/*,image/gif';
-                          input.onchange = (e) => {
-                            const file = (e.target as HTMLInputElement).files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onload = (ev) => {
-                                const img = new Image();
-                                img.onload = () => {
-                                  const newOverlay: ImageOverlay = {
-                                    id: Date.now().toString(),
-                                    src: ev.target?.result as string,
-                                    x: 50,
-                                    y: 50,
-                                    width: 20,
-                                    height: 20 * (img.naturalHeight / img.naturalWidth),
-                                    opacity: 100,
-                                    animated: file.type === 'image/gif',
-                                    loop: true,
-                                    rotation: 0,
-                                    preserveAspectRatio: true,
-                                    naturalWidth: img.naturalWidth,
-                                    naturalHeight: img.naturalHeight,
-                                  };
-                                  setImageOverlays([...imageOverlays, newOverlay]);
-                                };
-                                img.src = ev.target?.result as string;
-                              };
-                              reader.readAsDataURL(file);
-                            }
-                          };
-                          input.click();
-                        }}
-                        className="px-3 py-1.5 rounded-lg bg-purple-500/20 text-purple-300 text-xs hover:bg-purple-500/30 transition-all"
-                      >
-                        + Adicionar
-                      </button>
-                    </div>
-
-                    {/* Image overlays list */}
-                    <div className="space-y-2">
-                      {imageOverlays.map(overlay => (
-                        <div key={overlay.id} className="p-3 rounded-lg glass-light space-y-2">
-                          <div className="flex items-center gap-2">
-                            <img src={overlay.src} alt="Overlay" className="w-12 h-12 object-contain rounded" />
-                            <div className="flex-1">
-                              <p className="text-[10px] text-white/60">
-                                {overlay.animated ? '🎞️ GIF Animado' : '🖼️ Imagem'}
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => setImageOverlays(imageOverlays.filter(o => o.id !== overlay.id))}
-                              className="text-red-400 hover:text-red-300 text-xs"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="text-[9px] text-white/50 block mb-1">Posição X: {overlay.x}%</label>
-                              <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                value={overlay.x}
-                                onChange={e => setImageOverlays(imageOverlays.map(o => o.id === overlay.id ? { ...o, x: Number(e.target.value) } : o))}
-                                className="w-full"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[9px] text-white/50 block mb-1">Posição Y: {overlay.y}%</label>
-                              <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                value={overlay.y}
-                                onChange={e => setImageOverlays(imageOverlays.map(o => o.id === overlay.id ? { ...o, y: Number(e.target.value) } : o))}
-                                className="w-full"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="text-[9px] text-white/50 block mb-1">Largura: {overlay.width}%</label>
-                              <input
-                                type="range"
-                                min="5"
-                                max="100"
-                                value={overlay.width}
-                                onChange={e => {
-                                  const newWidth = Number(e.target.value);
-                                  setImageOverlays(imageOverlays.map(o => {
-                                    if (o.id !== overlay.id) return o;
-                                    if (o.preserveAspectRatio && o.naturalWidth > 0) {
-                                      const aspectRatio = o.naturalHeight / o.naturalWidth;
-                                      return { ...o, width: newWidth, height: newWidth * aspectRatio };
-                                    }
-                                    return { ...o, width: newWidth };
-                                  }));
-                                }}
-                                className="w-full"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[9px] text-white/50 block mb-1">Altura: {overlay.height.toFixed(1)}%</label>
-                              <input
-                                type="range"
-                                min="5"
-                                max="100"
-                                value={overlay.height}
-                                disabled={overlay.preserveAspectRatio}
-                                onChange={e => setImageOverlays(imageOverlays.map(o => o.id === overlay.id ? { ...o, height: Number(e.target.value) } : o))}
-                                className="w-full disabled:opacity-50"
-                              />
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="text-[9px] text-white/50 block mb-1">Opacidade: {overlay.opacity}%</label>
-                              <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                value={overlay.opacity}
-                                onChange={e => setImageOverlays(imageOverlays.map(o => o.id === overlay.id ? { ...o, opacity: Number(e.target.value) } : o))}
-                                className="w-full"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[9px] text-white/50 block mb-1">Rotação: {overlay.rotation}°</label>
-                              <input
-                                type="range"
-                                min="-180"
-                                max="180"
-                                value={overlay.rotation}
-                                onChange={e => setImageOverlays(imageOverlays.map(o => o.id === overlay.id ? { ...o, rotation: Number(e.target.value) } : o))}
-                                className="w-full"
-                              />
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center justify-between pt-1">
-                            <span className="text-[9px] text-white/60">🔒 Manter Proporção</span>
-                            <button
-                              onClick={() => setImageOverlays(imageOverlays.map(o => o.id === overlay.id ? { 
-                                ...o, 
-                                preserveAspectRatio: !o.preserveAspectRatio,
-                                height: !o.preserveAspectRatio && o.naturalWidth > 0 
-                                  ? o.width * (o.naturalHeight / o.naturalWidth) 
-                                  : o.height
-                              } : o))}
-                              className={`w-10 h-5 rounded-full transition-all ${overlay.preserveAspectRatio ? 'bg-purple-500' : 'bg-white/20'}`}
-                            >
-                              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${overlay.preserveAspectRatio ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                      {imageOverlays.length === 0 && (
-                        <p className="text-[10px] text-white/40 text-center py-4">
-                          Nenhuma imagem adicionada. Clique em "Adicionar" para upload de logos ou imagens.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Info */}
-                  <div className="border-t border-white/10 pt-4">
-                    <h4 className="text-xs font-medium text-white/70 mb-2">💡 Dicas</h4>
-                    <div className="space-y-1.5 text-[11px] text-white/50">
-                      <p>• Combine múltiplos efeitos ambientais</p>
-                      <p>• Use logos para marca d'água</p>
-                      <p>• GIFs animados são suportados</p>
-                      <p>• Ajuste posição e tamanho livremente</p>
-                      <p>• Efeitos reagem ao áudio</p>
                     </div>
                   </div>
                 </div>
