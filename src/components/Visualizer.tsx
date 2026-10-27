@@ -40,6 +40,27 @@ const Visualizer: React.FC<VisualizerProps> = ({
   const animFrameRef = useRef<number>(0);
   const particlesRef = useRef<Array<{x: number; y: number; vx: number; vy: number; life: number; size: number; color: string}>>([]);
   const timeRef = useRef(0);
+  const bgImageRef = useRef<HTMLImageElement | null>(null);
+  const bgLoadedRef = useRef(false);
+
+  // Load background image once when it changes
+  useEffect(() => {
+    if (backgroundImage) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        bgImageRef.current = img;
+        bgLoadedRef.current = true;
+      };
+      img.onerror = () => {
+        bgLoadedRef.current = false;
+      };
+      img.src = backgroundImage;
+    } else {
+      bgImageRef.current = null;
+      bgLoadedRef.current = false;
+    }
+  }, [backgroundImage]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -54,10 +75,8 @@ const Visualizer: React.FC<VisualizerProps> = ({
     ctx.clearRect(0, 0, width, height);
 
     // Background
-    if (backgroundImage) {
-      const img = new Image();
-      img.src = backgroundImage;
-      ctx.drawImage(img, 0, 0, width, height);
+    if (backgroundImage && bgLoadedRef.current && bgImageRef.current) {
+      ctx.drawImage(bgImageRef.current, 0, 0, width, height);
       ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
       ctx.fillRect(0, 0, width, height);
     } else {

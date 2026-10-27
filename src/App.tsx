@@ -91,6 +91,7 @@ function App() {
   const [isDragging, setIsDragging] = useState(false);
   const [templateCategory, setTemplateCategory] = useState('all');
   const [showSidebar, setShowSidebar] = useState(true);
+  const [exportStatus, setExportStatus] = useState<'idle' | 'exporting' | 'success' | 'error'>('idle');
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
@@ -284,13 +285,230 @@ function App() {
   };
 
   const exportImage = () => {
-    const canvas = document.querySelector('canvas');
-    if (canvas) {
-      const link = document.createElement('a');
-      link.download = 'audio-spectrum.png';
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+    setExportStatus('exporting');
+    
+    try {
+      // Criar canvas offscreen de alta resolução
+      const exportCanvas = document.createElement('canvas');
+      exportCanvas.width = 1920;
+      exportCanvas.height = 1080;
+      const ctx = exportCanvas.getContext('2d');
+      
+      if (!ctx) {
+        setExportStatus('error');
+        setTimeout(() => setExportStatus('idle'), 3000);
+        return;
+      }
+
+      // Renderizar background
+      const doExport = () => {
+        renderVisualizerAndTexts(ctx, exportCanvas);
+      };
+
+      if (backgroundImage) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, 1920, 1080);
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+          ctx.fillRect(0, 0, 1920, 1080);
+          doExport();
+        };
+        img.onerror = () => {
+          // Se falhar, usar background padrão
+          renderDefaultBackground(ctx, 1920, 1080);
+          doExport();
+        };
+        img.src = backgroundImage;
+      } else {
+        renderDefaultBackground(ctx, 1920, 1080);
+        doExport();
+      }
+    } catch (error) {
+      console.error('Erro na exportação:', error);
+      setExportStatus('error');
+      setTimeout(() => setExportStatus('idle'), 3000);
     }
+  };
+
+  const renderDefaultBackground = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+    const bgGrad = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, width/2);
+    bgGrad.addColorStop(0, '#1a1a3e');
+    bgGrad.addColorStop(1, '#0a0a1a');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, width, height);
+  };
+
+  const renderVisualizerAndTexts = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // Renderizar visualização atual (simplificada para export)
+    if (analyser) {
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      analyser.getByteFrequencyData(dataArray);
+
+      switch (visMode) {
+        case 'bars':
+          renderBarsExport(ctx, dataArray, width, height, bufferLength);
+          break;
+        case 'circular':
+          renderCircularExport(ctx, dataArray, width, height, bufferLength);
+          break;
+        default:
+          renderBarsExport(ctx, dataArray, width, height, bufferLength);
+      }
+    } else {
+      // Se não há áudio, renderizar um visual estático
+      renderStaticVisualizer(ctx, width, height);
+    }
+
+    // Renderizar textos
+    textOverlays.forEach(overlay => {
+      ctx.save();
+      ctx.globalAlpha = overlay.opacity;
+      ctx.font = `${overlay.italic ? 'italic ' : ''}${overlay.bold ? 'bold ' : ''}${overlay.fontSize * 2}px ${overlay.fontFamily}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      const x = (overlay.x / 100) * width;
+      const y = (overlay.y / 100) * height;
+
+      if (overlay.glow) {
+        ctx.shadowColor = overlay.color;
+        ctx.shadowBlur = 30;
+      }
+
+      ctx.fillStyle = overlay.color;
+      ctx.fillText(overlay.text, x, y);
+
+      // Outline
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+      ctx.lineWidth = 3;
+      ctx.strokeText(overlay.text, x, y);
+
+      ctx.restore();
+    });
+
+    // Fazer download
+    setTimeout(() => {
+      try {
+        // Tentar exportar o canvas offscreen
+        const dataUrl = canvas.toDataURL('image/png');
+        
+        if (!dataUrl || dataUrl === 'data:,' || dataUrl.length < 100) {
+          throw new Error('Canvas vazio ou inválido');
+        }
+
+        const link = document.createElement('a');
+        link.download = `audio-spectrum-${Date.now()}.png`;
+        link.href = dataUrl;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        
+        // Limpar após um delay
+        setTimeout(() => {
+          if (document.body.contains(link)) {
+            document.body.removeChild(link);
+          }
+          URL.revokeObjectURL(link.href);
+        }, 1000);
+        
+        setExportStatus('success');
+        setTimeout(() => setExportStatus('idle'), 3000);
+      } catch (error) {
+        console.error('Erro ao fazer download:', error);
+        // Tentar fallback: abrir em nova aba
+        try {
+          const dataUrl = canvas.toDataURL('image/png');
+          const newWindow = window.open('');
+          if (newWindow) {
+            newWindow.document.write(`<img src="${dataUrl}" style="max-width:100%"/><br><a href="${dataUrl}" download="audio-spectrum.png">Clique aqui para salvar</a>`);
+            setExportStatus('success');
+          } else {
+            setExportStatus('error');
+          }
+        } catch (e2) {
+          setExportStatus('error');
+        }
+        setTimeout(() => setExportStatus('idle'), 3000);
+      }
+    }, 100);
+  };
+
+  const renderBarsExport = (ctx: CanvasRenderingContext2D, dataArray: Uint8Array, width: number, height: number, bufferLength: number) => {
+    const barCount = 128;
+    const barWidth = width / barCount;
+    const step = Math.floor(bufferLength / barCount);
+
+    for (let i = 0; i < barCount; i++) {
+      const value = dataArray[i * step] * (sensitivity / 100);
+      const barHeight = (value / 255) * height * 0.8;
+
+      const gradient = ctx.createLinearGradient(0, height, 0, height - barHeight);
+      gradient.addColorStop(0, colors.primary);
+      gradient.addColorStop(0.5, colors.secondary);
+      gradient.addColorStop(1, colors.tertiary);
+
+      ctx.fillStyle = gradient;
+      ctx.shadowColor = colors.primary;
+      ctx.shadowBlur = value / 10;
+
+      const x = i * barWidth;
+      ctx.fillRect(x, height - barHeight, barWidth - 2, barHeight);
+    }
+    ctx.shadowBlur = 0;
+  };
+
+  const renderCircularExport = (ctx: CanvasRenderingContext2D, dataArray: Uint8Array, width: number, height: number, bufferLength: number) => {
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const radius = Math.min(width, height) * 0.25;
+    const bars = 180;
+
+    for (let i = 0; i < bars; i++) {
+      const angle = (i / bars) * Math.PI * 2;
+      const dataIndex = Math.floor((i / bars) * bufferLength);
+      const value = dataArray[dataIndex] * (sensitivity / 100);
+      const barLength = (value / 255) * radius * 1.5;
+
+      const x1 = centerX + Math.cos(angle) * radius;
+      const y1 = centerY + Math.sin(angle) * radius;
+      const x2 = centerX + Math.cos(angle) * (radius + barLength);
+      const y2 = centerY + Math.sin(angle) * (radius + barLength);
+
+      const hue = (i / bars) * 360;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.strokeStyle = `hsl(${hue}, 80%, 60%)`;
+      ctx.lineWidth = 3;
+      ctx.shadowColor = `hsl(${hue}, 80%, 60%)`;
+      ctx.shadowBlur = value / 15;
+      ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+  };
+
+  const renderStaticVisualizer = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+    // Renderizar um visual estático quando não há áudio
+    const barCount = 64;
+    const barWidth = width / barCount;
+
+    for (let i = 0; i < barCount; i++) {
+      const barHeight = (Math.sin(i * 0.2) + 1) * 0.3 * height;
+      const gradient = ctx.createLinearGradient(0, height, 0, height - barHeight);
+      gradient.addColorStop(0, colors.primary);
+      gradient.addColorStop(0.5, colors.secondary);
+      gradient.addColorStop(1, colors.tertiary);
+
+      ctx.fillStyle = gradient;
+      ctx.globalAlpha = 0.6;
+      ctx.fillRect(i * barWidth, height - barHeight, barWidth - 2, barHeight);
+    }
+    ctx.globalAlpha = 1;
   };
 
   const categories = ['all', ...Array.from(new Set(TEMPLATES.map(t => t.category)))];
@@ -892,11 +1110,33 @@ function App() {
 
                   <button
                     onClick={exportImage}
-                    className="w-full p-4 rounded-xl glass-light hover:bg-white/10 transition-all text-center group"
+                    disabled={exportStatus === 'exporting'}
+                    className={`w-full p-4 rounded-xl transition-all text-center group ${
+                      exportStatus === 'exporting'
+                        ? 'bg-purple-500/20 border border-purple-500/50'
+                        : exportStatus === 'success'
+                        ? 'bg-green-500/20 border border-green-500/50'
+                        : exportStatus === 'error'
+                        ? 'bg-red-500/20 border border-red-500/50'
+                        : 'glass-light hover:bg-white/10'
+                    }`}
                   >
-                    <div className="text-2xl mb-2">📸</div>
-                    <p className="text-xs font-medium text-white/80 group-hover:text-white">Capturar Imagem PNG</p>
-                    <p className="text-[10px] text-white/40 mt-1">Alta resolução</p>
+                    <div className="text-2xl mb-2">
+                      {exportStatus === 'exporting' ? '⏳' : exportStatus === 'success' ? '✅' : exportStatus === 'error' ? '❌' : '📸'}
+                    </div>
+                    <p className={`text-xs font-medium ${
+                      exportStatus === 'success' ? 'text-green-300' : 
+                      exportStatus === 'error' ? 'text-red-300' : 
+                      'text-white/80 group-hover:text-white'
+                    }`}>
+                      {exportStatus === 'exporting' ? 'Exportando...' : 
+                       exportStatus === 'success' ? 'Imagem salva com sucesso!' : 
+                       exportStatus === 'error' ? 'Erro na exportação' : 
+                       'Capturar Imagem PNG'}
+                    </p>
+                    <p className="text-[10px] text-white/40 mt-1">
+                      {exportStatus === 'idle' ? '1920x1080 - Alta resolução' : ''}
+                    </p>
                   </button>
 
                   <div className="space-y-2">
