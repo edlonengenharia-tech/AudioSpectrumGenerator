@@ -9,7 +9,7 @@ echo ================================================================
 echo.
 
 echo [1/3] Criando icones...
-node create-icons.js
+node generate-icons.js
 if %errorlevel% neq 0 (
     echo [ERRO] Falha ao criar icones
     pause
