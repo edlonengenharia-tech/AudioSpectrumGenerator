@@ -1,87 +1,16 @@
 {
+  "$schema": "https://raw.githubusercontent.com/nicegui/nicegui/main/tauri.conf.json",
+  "productName": "Audio Spectrum Generator",
+  "version": "1.0.0",
+  "identifier": "com.audiospectrum.app",
   "build": {
     "beforeBuildCommand": "npm run build",
     "beforeDevCommand": "npm run dev",
-    "devPath": "http://localhost:5173",
-    "distDir": "../dist"
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist"
   },
-  "package": {
-    "productName": "Audio Spectrum Generator",
-    "version": "1.0.0"
-  },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "shell": {
-        "all": false,
-        "open": true
-      },
-      "fs": {
-        "all": true,
-        "readFile": true,
-        "writeFile": true,
-        "readDir": true,
-        "copyFile": true,
-        "createDir": true,
-        "removeDir": true,
-        "removeFile": true,
-        "renameFile": true,
-        "exists": true
-      },
-      "dialog": {
-        "all": true,
-        "open": true,
-        "save": true
-      },
-      "notification": {
-        "all": true
-      }
-    },
-    "bundle": {
-      "active": true,
-      "targets": "all",
-      "identifier": "com.audiospectrum.app",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
-      "resources": [],
-      "externalBin": [],
-      "copyright": "© 2024 Audio Spectrum Generator",
-      "category": "Music",
-      "shortDescription": "Visualizador de Áudio Profissional",
-      "longDescription": "Um visualizador de áudio profissional com efeitos avançados, múltiplos modos de visualização, textos animados, efeitos ambientais e exportação de vídeo em alta qualidade.",
-      "deb": {
-        "depends": []
-      },
-      "macOS": {
-        "frameworks": [],
-        "minimumSystemVersion": "10.15",
-        "exceptionDomain": "",
-        "signing": {
-          "identifier": "",
-          "entitlements": null
-        }
-      },
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": "",
-        "wix": null,
-        "nsis": {
-          "installMode": "currentUser"
-        }
-      }
-    },
-    "security": {
-      "csp": null
-    },
-    "updater": {
-      "active": false
-    },
+  "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "Audio Spectrum Generator",
@@ -94,9 +23,31 @@
         "center": true,
         "decorations": true,
         "transparent": false,
-        "alwaysOnTop": false,
-        "fileDropEnabled": true
+        "alwaysOnTop": false
       }
-    ]
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "copyright": "© 2024 Audio Spectrum Generator",
+    "category": "Music",
+    "shortDescription": "Visualizador de Audio Profissional",
+    "longDescription": "Um visualizador de audio profissional com efeitos avancados, multiplos modos de visualizacao, textos animados, efeitos ambientais e exportacao de video em alta qualidade.",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
   }
 }

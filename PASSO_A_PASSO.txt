@@ -1,0 +1,80 @@
+COMO CRIAR O EXECUTAVEL - PASSO A PASSO
+========================================
+
+PASSO 1: Instalar Rust
+----------------------
+1. Acesse: https://rustup.rs/
+2. Baixe e execute rustup-init.exe
+3. Siga as instrucoes (pressione ENTER para aceitar o padrao)
+4. FECH E REABRA o terminal/PowerShell
+5. Verifique: rustc --version
+
+
+PASSO 2: Instalar Visual Studio Build Tools
+--------------------------------------------
+1. Acesse: https://visualstudio.microsoft.com/visual-cpp-build-tools/
+2. Baixe e execute o instalador
+3. Na instalacao, marque:
+   [X] Desenvolvimento para desktop com C++
+   [X] Windows 10 SDK (ou versao mais recente)
+4. Aguarde a instalacao (pode demorar 10-20 minutos)
+
+
+PASSO 3: Gerar Icones
+---------------------
+No terminal, na pasta do projeto, execute:
+
+   npx tauri icon public\icon-512.png
+
+Isso vai criar a pasta src-tauri\icons com todos os tamanhos necessarios.
+
+
+PASSO 4: Criar o Executavel
+----------------------------
+Execute:
+
+   npm run tauri:build
+
+Aguarde alguns minutos (na primeira vez pode demorar 5-15 minutos).
+
+
+PASSO 5: Encontrar o Executavel
+--------------------------------
+O executavel estara em:
+
+   src-tauri\target\release\bundle\
+
+Dentro dessa pasta voce vai encontrar:
+- msi\Audio Spectrum Generator_1.0.0_x64_en-US.msi
+- nsis\Audio Spectrum Generator_1.0.0_x64-setup.exe
+
+
+ERROS COMUNS E SOLUCOES
+========================
+
+ERRO: "rustc" nao encontrado
+-> Instale Rust e REINICIE o terminal
+
+ERRO: "cl.exe" nao encontrado
+-> Instale Visual Studio Build Tools com "Desenvolvimento para desktop com C++"
+
+ERRO: Permissao negada
+-> Execute o terminal como Administrador
+
+ERRO: Build muito lento
+-> Normal na primeira vez, proximos builds serao rapidos
+
+
+COMANDOS UTIES
+==============
+
+Testar em desenvolvimento:
+   npm run tauri:dev
+
+Criar executavel:
+   npm run tauri:build
+
+Limpar build anterior:
+   cd src-tauri
+   cargo clean
+   cd ..
