@@ -35,12 +35,37 @@ interface VisualizerProps {
     strokeColor: string;
     gradientType: string;
   };
+  // Environmental effects
+  environmentalEffects: {
+    petals: boolean;
+    rain: boolean;
+    snow: boolean;
+    bubbles: boolean;
+    stars: boolean;
+    fireflies: boolean;
+    leaves: boolean;
+    confetti: boolean;
+  };
+  // Image overlays (logos, animated images)
+  imageOverlays: ImageOverlay[];
   // For offline rendering
   offlineData?: {
     frequencyData: Uint8Array | null;
     timeData: Uint8Array | null;
     currentTime: number;
   };
+}
+
+export interface ImageOverlay {
+  id: string;
+  src: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  opacity: number;
+  animated: boolean;
+  loop: boolean;
 }
 
 export interface TextOverlay {
@@ -68,6 +93,8 @@ const Visualizer: React.FC<VisualizerProps> = ({
   backgroundImage,
   textOverlays,
   visualSettings,
+  environmentalEffects,
+  imageOverlays,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameRef = useRef<number>(0);
@@ -75,6 +102,30 @@ const Visualizer: React.FC<VisualizerProps> = ({
   const timeRef = useRef(0);
   const bgImageRef = useRef<HTMLImageElement | null>(null);
   const bgLoadedRef = useRef(false);
+  
+  // Environmental particles
+  const envParticlesRef = useRef<{
+    petals: Array<{x: number; y: number; vx: number; vy: number; rotation: number; size: number; opacity: number}>;
+    rain: Array<{x: number; y: number; speed: number; length: number}>;
+    snow: Array<{x: number; y: number; vx: number; vy: number; size: number; opacity: number}>;
+    bubbles: Array<{x: number; y: number; vy: number; size: number; opacity: number}>;
+    stars: Array<{x: number; y: number; size: number; twinkle: number}>;
+    fireflies: Array<{x: number; y: number; vx: number; vy: number; brightness: number; phase: number}>;
+    leaves: Array<{x: number; y: number; vx: number; vy: number; rotation: number; size: number}>;
+    confetti: Array<{x: number; y: number; vx: number; vy: number; rotation: number; color: string; size: number}>;
+  }>({
+    petals: [],
+    rain: [],
+    snow: [],
+    bubbles: [],
+    stars: [],
+    fireflies: [],
+    leaves: [],
+    confetti: [],
+  });
+  
+  // Image overlay refs
+  const imageOverlayRefs = useRef<Map<string, HTMLImageElement>>(new Map());
 
   // Load background image once when it changes
   useEffect(() => {
@@ -94,6 +145,28 @@ const Visualizer: React.FC<VisualizerProps> = ({
       bgLoadedRef.current = false;
     }
   }, [backgroundImage]);
+
+  // Load image overlays
+  useEffect(() => {
+    imageOverlays.forEach(overlay => {
+      if (!imageOverlayRefs.current.has(overlay.id)) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          imageOverlayRefs.current.set(overlay.id, img);
+        };
+        img.src = overlay.src;
+      }
+    });
+    
+    // Remove deleted overlays
+    const currentIds = new Set(imageOverlays.map(o => o.id));
+    imageOverlayRefs.current.forEach((_, id) => {
+      if (!currentIds.has(id)) {
+        imageOverlayRefs.current.delete(id);
+      }
+    });
+  }, [imageOverlays]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -156,6 +229,12 @@ const Visualizer: React.FC<VisualizerProps> = ({
       ctx.fillStyle = idleGrad;
       ctx.fillRect(0, 0, width, height);
 
+      // Draw environmental effects even when idle
+      drawEnvironmentalEffects(ctx, width, height, 0);
+
+      // Draw image overlays even when idle
+      drawImageOverlays(ctx, width, height);
+
       // Draw text overlays even when idle
       drawTextOverlays(ctx, width, height);
       animFrameRef.current = requestAnimationFrame(draw);
@@ -204,6 +283,12 @@ const Visualizer: React.FC<VisualizerProps> = ({
       ctx.fillStyle = vignetteGrad;
       ctx.fillRect(0, 0, width, height);
     }
+
+    // Draw environmental effects
+    drawEnvironmentalEffects(ctx, width, height, audioLevel);
+
+    // Draw image overlays
+    drawImageOverlays(ctx, width, height);
 
     // Draw text overlays
     drawTextOverlays(ctx, width, height);
@@ -698,6 +783,280 @@ const Visualizer: React.FC<VisualizerProps> = ({
     
     ctx.restore();
     ctx.shadowBlur = 0;
+  };
+
+  // Environmental effects rendering
+  const drawEnvironmentalEffects = (ctx: CanvasRenderingContext2D, width: number, height: number, audioLevel: number) => {
+    const env = envParticlesRef.current;
+    const audioIntensity = audioLevel / 255;
+
+    // Petals
+    if (environmentalEffects.petals) {
+      while (env.petals.length < 30) {
+        env.petals.push({
+          x: Math.random() * width,
+          y: -20,
+          vx: (Math.random() - 0.5) * 2,
+          vy: Math.random() * 2 + 1,
+          rotation: Math.random() * Math.PI * 2,
+          size: Math.random() * 10 + 5,
+          opacity: Math.random() * 0.5 + 0.5,
+        });
+      }
+
+      env.petals.forEach((p, i) => {
+        p.x += p.vx + Math.sin(timeRef.current + i) * 0.5;
+        p.y += p.vy;
+        p.rotation += 0.02;
+
+        if (p.y > height + 20) {
+          p.y = -20;
+          p.x = Math.random() * width;
+        }
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation);
+        ctx.globalAlpha = p.opacity;
+        ctx.fillStyle = `hsl(${330 + Math.random() * 30}, 70%, 70%)`;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, p.size, p.size * 0.6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+
+    // Rain
+    if (environmentalEffects.rain) {
+      while (env.rain.length < 100) {
+        env.rain.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          speed: Math.random() * 10 + 10,
+          length: Math.random() * 20 + 10,
+        });
+      }
+
+      ctx.strokeStyle = 'rgba(150, 200, 255, 0.6)';
+      ctx.lineWidth = 1;
+      env.rain.forEach(r => {
+        ctx.beginPath();
+        ctx.moveTo(r.x, r.y);
+        ctx.lineTo(r.x - 2, r.y + r.length);
+        ctx.stroke();
+
+        r.y += r.speed;
+        r.x -= 2;
+
+        if (r.y > height) {
+          r.y = -r.length;
+          r.x = Math.random() * width;
+        }
+      });
+    }
+
+    // Snow
+    if (environmentalEffects.snow) {
+      while (env.snow.length < 50) {
+        env.snow.push({
+          x: Math.random() * width,
+          y: -10,
+          vx: (Math.random() - 0.5) * 1,
+          vy: Math.random() * 1 + 0.5,
+          size: Math.random() * 3 + 1,
+          opacity: Math.random() * 0.5 + 0.5,
+        });
+      }
+
+      env.snow.forEach(s => {
+        s.x += s.vx + Math.sin(timeRef.current + s.y * 0.01) * 0.5;
+        s.y += s.vy;
+
+        if (s.y > height) {
+          s.y = -10;
+          s.x = Math.random() * width;
+        }
+
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${s.opacity})`;
+        ctx.fill();
+      });
+    }
+
+    // Bubbles
+    if (environmentalEffects.bubbles) {
+      while (env.bubbles.length < 20) {
+        env.bubbles.push({
+          x: Math.random() * width,
+          y: height + 20,
+          vy: -(Math.random() * 2 + 1),
+          size: Math.random() * 15 + 5,
+          opacity: Math.random() * 0.5 + 0.3,
+        });
+      }
+
+      env.bubbles.forEach(b => {
+        b.y += b.vy;
+        b.x += Math.sin(timeRef.current + b.y * 0.05) * 0.5;
+
+        if (b.y < -b.size) {
+          b.y = height + 20;
+          b.x = Math.random() * width;
+        }
+
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(150, 200, 255, ${b.opacity})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Highlight
+        ctx.beginPath();
+        ctx.arc(b.x - b.size * 0.3, b.y - b.size * 0.3, b.size * 0.2, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${b.opacity * 0.5})`;
+        ctx.fill();
+      });
+    }
+
+    // Stars
+    if (environmentalEffects.stars) {
+      while (env.stars.length < 40) {
+        env.stars.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          size: Math.random() * 2 + 1,
+          twinkle: Math.random() * Math.PI * 2,
+        });
+      }
+
+      env.stars.forEach(s => {
+        const brightness = (Math.sin(timeRef.current * 2 + s.twinkle) + 1) / 2;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.size * brightness, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 200, ${brightness})`;
+        ctx.shadowColor = 'rgba(255, 255, 200, 0.8)';
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+    }
+
+    // Fireflies
+    if (environmentalEffects.fireflies) {
+      while (env.fireflies.length < 15) {
+        env.fireflies.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          vx: (Math.random() - 0.5) * 2,
+          vy: (Math.random() - 0.5) * 2,
+          brightness: Math.random(),
+          phase: Math.random() * Math.PI * 2,
+        });
+      }
+
+      env.fireflies.forEach(f => {
+        f.x += f.vx;
+        f.y += f.vy;
+        f.brightness = (Math.sin(timeRef.current * 3 + f.phase) + 1) / 2;
+
+        if (f.x < 0 || f.x > width) f.vx *= -1;
+        if (f.y < 0 || f.y > height) f.vy *= -1;
+
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, 3 + f.brightness * 3, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(200, 255, 100, ${f.brightness})`;
+        ctx.shadowColor = 'rgba(200, 255, 100, 0.8)';
+        ctx.shadowBlur = 15;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+    }
+
+    // Leaves
+    if (environmentalEffects.leaves) {
+      while (env.leaves.length < 20) {
+        env.leaves.push({
+          x: Math.random() * width,
+          y: -20,
+          vx: (Math.random() - 0.5) * 3,
+          vy: Math.random() * 2 + 1,
+          rotation: Math.random() * Math.PI * 2,
+          size: Math.random() * 10 + 8,
+        });
+      }
+
+      env.leaves.forEach((l, i) => {
+        l.x += l.vx + Math.sin(timeRef.current + i) * 1;
+        l.y += l.vy;
+        l.rotation += 0.03;
+
+        if (l.y > height + 20) {
+          l.y = -20;
+          l.x = Math.random() * width;
+        }
+
+        ctx.save();
+        ctx.translate(l.x, l.y);
+        ctx.rotate(l.rotation);
+        ctx.fillStyle = `hsl(${30 + i * 5}, 60%, 50%)`;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, l.size, l.size * 0.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+
+    // Confetti
+    if (environmentalEffects.confetti) {
+      while (env.confetti.length < 40) {
+        env.confetti.push({
+          x: Math.random() * width,
+          y: -20,
+          vx: (Math.random() - 0.5) * 4,
+          vy: Math.random() * 3 + 2,
+          rotation: Math.random() * Math.PI * 2,
+          color: `hsl(${Math.random() * 360}, 80%, 60%)`,
+          size: Math.random() * 8 + 4,
+        });
+      }
+
+      env.confetti.forEach(c => {
+        c.x += c.vx;
+        c.y += c.vy;
+        c.rotation += 0.1;
+
+        if (c.y > height + 20) {
+          c.y = -20;
+          c.x = Math.random() * width;
+        }
+
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.rotate(c.rotation);
+        ctx.fillStyle = c.color;
+        ctx.fillRect(-c.size / 2, -c.size / 2, c.size, c.size * 0.5);
+        ctx.restore();
+      });
+    }
+  };
+
+  // Draw image overlays
+  const drawImageOverlays = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+    imageOverlays.forEach(overlay => {
+      const img = imageOverlayRefs.current.get(overlay.id);
+      if (img) {
+        const x = (overlay.x / 100) * width;
+        const y = (overlay.y / 100) * height;
+        const w = (overlay.width / 100) * width;
+        const h = (overlay.height / 100) * height;
+
+        ctx.save();
+        ctx.globalAlpha = overlay.opacity / 100;
+        ctx.drawImage(img, x - w / 2, y - h / 2, w, h);
+        ctx.restore();
+      }
+    });
   };
 
   useEffect(() => {
