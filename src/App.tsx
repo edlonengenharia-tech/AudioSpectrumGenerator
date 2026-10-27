@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import Visualizer, { TextOverlay } from './components/Visualizer';
+import Visualizer, { TextOverlay, renderFrame } from './components/Visualizer';
 
 type VisMode = 'bars' | 'wave' | 'circular' | 'particles' | 'equalizer3d' | 'galaxy' | 'lightning';
 type TabType = 'visualizer' | 'text' | 'templates' | 'background' | 'settings' | 'export';
@@ -151,8 +151,13 @@ function App() {
   const [exportStatus, setExportStatus] = useState<'idle' | 'exporting' | 'success' | 'error'>('idle');
   const [visualSettings, setVisualSettings] = useState<VisualSettings>(DEFAULT_VISUAL_SETTINGS);
   const [systemFonts, setSystemFonts] = useState<string[]>(DEFAULT_FONTS);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
+  const [isRendering, setIsRendering] = useState(false);
+  const [renderProgress, setRenderProgress] = useState(0);
+  const [renderDuration, setRenderDuration] = useState(30);
+  const [renderFPS, setRenderFPS] = useState(30);
+  const [renderResolution, setRenderResolution] = useState<'720p' | '1080p' | '4k'>('1080p');
+  const [renderStatus, setRenderStatus] = useState<'idle' | 'preparing' | 'rendering' | 'encoding' | 'done' | 'error'>('idle');
+  const [renderCancel, setRenderCancel] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -161,9 +166,6 @@ function App() {
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordedChunksRef = useRef<Blob[]>([]);
-  const recordingIntervalRef = useRef<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const initAudioContext = useCallback(() => {
@@ -599,57 +601,163 @@ function App() {
   const categories = ['all', ...Array.from(new Set(TEMPLATES.map(t => t.category)))];
   const filteredTemplates = templateCategory === 'all' ? TEMPLATES : TEMPLATES.filter(t => t.category === templateCategory);
 
-  const startRecording = () => {
-    const canvas = document.querySelector('canvas');
-    if (!canvas) {
-      alert('Canvas não encontrado');
+  const startRendering = async () => {
+    if (!audioElementRef.current && !streamRef.current) {
+      alert('Carregue um áudio ou ative o microfone primeiro');
       return;
     }
 
-    canvasRef.current = canvas;
-    recordedChunksRef.current = [];
+    setRenderStatus('preparing');
+    setRenderProgress(0);
+    setRenderCancel(false);
+    setIsRendering(true);
 
-    // Capture canvas stream
-    const canvasStream = canvas.captureStream(30); // 30 FPS
+    try {
+      // Get resolution
+      const resolutions = {
+        '720p': { width: 1280, height: 720 },
+        '1080p': { width: 1920, height: 1080 },
+        '4k': { width: 3840, height: 2160 }
+      };
+      const { width, height } = resolutions[renderResolution];
 
-    // If we have audio, combine audio and video streams
-    let combinedStream = canvasStream;
-    if (audioContextRef.current && sourceRef.current) {
-      const audioDestination = audioContextRef.current.createMediaStreamDestination();
-      sourceRef.current.connect(audioDestination);
+      // Create offscreen canvas
+      const offscreenCanvas = document.createElement('canvas');
+      offscreenCanvas.width = width;
+      offscreenCanvas.height = height;
+      const ctx = offscreenCanvas.getContext('2d');
+      if (!ctx) throw new Error('Não foi possível criar o canvas');
+
+      // Load background image if exists
+      let bgImage: HTMLImageElement | null = null;
+      if (backgroundImage) {
+        bgImage = new Image();
+        bgImage.crossOrigin = 'anonymous';
+        await new Promise<void>((resolve, reject) => {
+          bgImage!.onload = () => resolve();
+          bgImage!.onerror = () => resolve(); // Continue even if image fails
+          bgImage!.src = backgroundImage;
+        });
+      }
+
+      // Get audio data
+      const audioBuffer = await getAudioBuffer();
+      if (!audioBuffer) throw new Error('Não foi possível obter os dados de áudio');
+
+      // Create audio context for analysis
+      const offlineCtx = new OfflineAudioContext(2, audioBuffer.length, audioBuffer.sampleRate);
+      const source = offlineCtx.createBufferSource();
+      source.buffer = audioBuffer;
+      const analyser = offlineCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      source.connect(analyser);
+      analyser.connect(offlineCtx.destination);
+      source.start();
+
+      // Calculate frames
+      const totalFrames = renderDuration * renderFPS;
+      const frameDuration = 1 / renderFPS;
+      const frequencyData = new Uint8Array(analyser.frequencyBinCount);
+      const timeData = new Uint8Array(analyser.frequencyBinCount);
+
+      // Setup MediaRecorder
+      const canvasStream = offscreenCanvas.captureStream(renderFPS);
       
-      const audioStream = audioDestination.stream;
-      combinedStream = new MediaStream([
-        ...canvasStream.getVideoTracks(),
-        ...audioStream.getAudioTracks()
-      ]);
-    }
-
-    // Determine supported MIME type
-    let mimeType = 'video/webm;codecs=vp9,opus';
-    if (!MediaRecorder.isTypeSupported(mimeType)) {
-      mimeType = 'video/webm;codecs=vp8,opus';
+      let mimeType = 'video/webm;codecs=vp9';
       if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'video/webm';
+        mimeType = 'video/webm;codecs=vp8';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = 'video/webm';
+        }
       }
-    }
 
-    const mediaRecorder = new MediaRecorder(combinedStream, {
-      mimeType,
-      videoBitsPerSecond: 5000000 // 5 Mbps
-    });
+      const mediaRecorder = new MediaRecorder(canvasStream, {
+        mimeType,
+        videoBitsPerSecond: 8000000 // 8 Mbps for high quality
+      });
 
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        recordedChunksRef.current.push(event.data);
+      const chunks: Blob[] = [];
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      mediaRecorder.start(100);
+      setRenderStatus('rendering');
+
+      // Render frames
+      for (let frame = 0; frame < totalFrames; frame++) {
+        if (renderCancel) {
+          mediaRecorder.stop();
+          setIsRendering(false);
+          setRenderStatus('idle');
+          return;
+        }
+
+        const currentTime = frame * frameDuration;
+        
+        // Get audio data at this time
+        // Since we can't easily get frequency data at specific times from OfflineAudioContext,
+        // we'll use a simulated approach based on the audio buffer
+        const sampleIndex = Math.floor(currentTime * audioBuffer.sampleRate);
+        const channelData = audioBuffer.getChannelData(0);
+        
+        // Simple FFT approximation using windowed samples
+        const windowSize = 2048;
+        const startSample = Math.max(0, sampleIndex - windowSize / 2);
+        const endSample = Math.min(channelData.length, startSample + windowSize);
+        
+        // Fill frequency data with simulated values based on audio amplitude
+        for (let i = 0; i < frequencyData.length; i++) {
+          const samplePos = startSample + Math.floor((i / frequencyData.length) * (endSample - startSample));
+          const amplitude = Math.abs(channelData[samplePos] || 0);
+          // Simulate frequency distribution (bass on left, treble on right)
+          const freqFactor = 1 - (i / frequencyData.length) * 0.7;
+          frequencyData[i] = Math.min(255, Math.floor(amplitude * 255 * 3 * freqFactor));
+        }
+
+        // Fill time data
+        for (let i = 0; i < timeData.length; i++) {
+          const samplePos = startSample + Math.floor((i / timeData.length) * (endSample - startSample));
+          timeData[i] = Math.floor(((channelData[samplePos] || 0) + 1) * 128);
+        }
+
+        // Render frame using the static render function
+        renderFrame(offscreenCanvas, {
+          mode: visMode,
+          colors,
+          sensitivity,
+          backgroundImage,
+          bgImage,
+          textOverlays,
+          visualSettings,
+          frequencyData,
+          timeData,
+          currentTime
+        });
+
+        // Update progress
+        const progress = ((frame + 1) / totalFrames) * 100;
+        setRenderProgress(progress);
+
+        // Yield to browser
+        if (frame % 5 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
       }
-    };
 
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+      // Stop recording and create video
+      setRenderStatus('encoding');
+      mediaRecorder.stop();
+
+      await new Promise<void>((resolve) => {
+        mediaRecorder.onstop = () => resolve();
+      });
+
+      // Create and download video
+      const blob = new Blob(chunks, { type: 'video/webm' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.download = `audio-spectrum-${Date.now()}.webm`;
+      link.download = `audio-spectrum-${renderDuration}s-${renderResolution}-${Date.now()}.webm`;
       link.href = url;
       link.style.display = 'none';
       document.body.appendChild(link);
@@ -658,36 +766,48 @@ function App() {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
       }, 1000);
-    };
 
-    mediaRecorder.start(1000); // Collect data every second
-    mediaRecorderRef.current = mediaRecorder;
-    setIsRecording(true);
-    setRecordingTime(0);
+      setRenderStatus('done');
+      setTimeout(() => {
+        setRenderStatus('idle');
+        setIsRendering(false);
+      }, 3000);
 
-    // Start timer
-    recordingIntervalRef.current = window.setInterval(() => {
-      setRecordingTime(prev => prev + 1);
-    }, 1000);
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
+    } catch (error) {
+      console.error('Render error:', error);
+      setRenderStatus('error');
+      setIsRendering(false);
+      setTimeout(() => setRenderStatus('idle'), 3000);
     }
-    if (recordingIntervalRef.current) {
-      clearInterval(recordingIntervalRef.current);
-      recordingIntervalRef.current = null;
-    }
-    setIsRecording(false);
-    setRecordingTime(0);
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  const stopRendering = () => {
+    setRenderCancel(true);
   };
+
+  const getAudioBuffer = async (): Promise<AudioBuffer | null> => {
+    try {
+      if (audioElementRef.current && audioElementRef.current.src) {
+        // Load audio file
+        const response = await fetch(audioElementRef.current.src);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioCtx = new AudioContext();
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        await audioCtx.close();
+        return audioBuffer;
+      } else if (streamRef.current) {
+        // For microphone, we can't get a buffer, so return null
+        // User should use file audio for rendering
+        return null;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting audio buffer:', error);
+      return null;
+    }
+  };
+
+
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-[#0a0a1a]">
@@ -751,10 +871,10 @@ function App() {
             </div>
           )}
 
-          {isRecording && (
-            <div className="flex items-center gap-1 ml-2 px-2 py-1 rounded-lg bg-red-500/20 border border-red-500/50">
-              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-[10px] text-red-400 font-mono">{formatTime(recordingTime)}</span>
+          {isRendering && (
+            <div className="flex items-center gap-1 ml-2 px-2 py-1 rounded-lg bg-purple-500/20 border border-purple-500/50">
+              <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+              <span className="text-[10px] text-purple-400 font-mono">{Math.round(renderProgress)}%</span>
             </div>
           )}
 
@@ -1638,41 +1758,123 @@ function App() {
                     </p>
                   </button>
 
-                  {/* Video Recording */}
+                  {/* Video Rendering */}
                   <div className="border-t border-white/10 pt-4">
-                    <h4 className="text-xs font-medium text-white/70 mb-2">🎬 Gravação de Vídeo</h4>
+                    <h4 className="text-xs font-medium text-white/70 mb-2">🎬 Renderização de Vídeo</h4>
                     
-                    {!isRecording ? (
-                      <button
-                        onClick={startRecording}
-                        disabled={!audioSource}
-                        className="w-full p-4 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 transition-all text-center group disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <div className="text-2xl mb-2">🔴</div>
-                        <p className="text-xs font-medium text-red-300">Iniciar Gravação</p>
-                        <p className="text-[10px] text-white/40 mt-1">
-                          {audioSource ? 'Gravar visualização com áudio' : 'Carregue um áudio primeiro'}
-                        </p>
-                      </button>
+                    {!isRendering ? (
+                      <div className="space-y-3">
+                        {/* Duration */}
+                        <div>
+                          <label className="text-[10px] text-white/50 block mb-1">Duração: {renderDuration}s</label>
+                          <input
+                            type="range"
+                            min="5"
+                            max="300"
+                            value={renderDuration}
+                            onChange={e => setRenderDuration(Number(e.target.value))}
+                            className="w-full"
+                          />
+                        </div>
+
+                        {/* Resolution */}
+                        <div>
+                          <label className="text-[10px] text-white/50 block mb-1">Resolução</label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {(['720p', '1080p', '4k'] as const).map(res => (
+                              <button
+                                key={res}
+                                onClick={() => setRenderResolution(res)}
+                                className={`py-1.5 rounded-lg text-[10px] font-medium transition-all ${
+                                  renderResolution === res
+                                    ? 'bg-purple-500/30 text-purple-300 border border-purple-500/50'
+                                    : 'glass-light text-white/60 hover:text-white/80'
+                                }`}
+                              >
+                                {res}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* FPS */}
+                        <div>
+                          <label className="text-[10px] text-white/50 block mb-1">FPS</label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {[24, 30, 60].map(fps => (
+                              <button
+                                key={fps}
+                                onClick={() => setRenderFPS(fps)}
+                                className={`py-1.5 rounded-lg text-[10px] font-medium transition-all ${
+                                  renderFPS === fps
+                                    ? 'bg-purple-500/30 text-purple-300 border border-purple-500/50'
+                                    : 'glass-light text-white/60 hover:text-white/80'
+                                }`}
+                              >
+                                {fps}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Render button */}
+                        <button
+                          onClick={startRendering}
+                          disabled={audioSource !== 'file'}
+                          className="w-full p-4 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/50 transition-all text-center group disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <div className="text-2xl mb-2">🎬</div>
+                          <p className="text-xs font-medium text-purple-300">Iniciar Renderização</p>
+                          <p className="text-[10px] text-white/40 mt-1">
+                            {audioSource === 'file' 
+                              ? `Renderizar ${renderDuration}s em ${renderResolution} @ ${renderFPS} FPS`
+                              : 'Carregue um arquivo de áudio'}
+                          </p>
+                        </button>
+                      </div>
                     ) : (
                       <div className="space-y-2">
-                        <div className="p-3 rounded-xl bg-red-500/20 border border-red-500/50">
+                        <div className="p-3 rounded-xl bg-purple-500/20 border border-purple-500/50">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                              <span className="text-xs font-medium text-red-300">Gravando...</span>
+                              <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+                              <span className="text-xs font-medium text-purple-300">
+                                {renderStatus === 'preparing' && 'Preparando...'}
+                                {renderStatus === 'rendering' && 'Renderizando...'}
+                                {renderStatus === 'encoding' && 'Codificando...'}
+                                {renderStatus === 'done' && 'Concluído!'}
+                                {renderStatus === 'error' && 'Erro!'}
+                              </span>
                             </div>
-                            <span className="text-xs font-mono text-white/80">{formatTime(recordingTime)}</span>
+                            <span className="text-xs font-mono text-white/80">{Math.round(renderProgress)}%</span>
                           </div>
-                          <button
-                            onClick={stopRecording}
-                            className="w-full py-2 rounded-lg bg-red-500/30 hover:bg-red-500/40 text-red-200 text-xs font-medium transition-all"
-                          >
-                            ⏹️ Parar e Salvar
-                          </button>
+                          
+                          {/* Progress bar */}
+                          <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden mb-2">
+                            <div
+                              className="h-full rounded-full transition-all duration-200"
+                              style={{
+                                width: `${renderProgress}%`,
+                                background: `linear-gradient(90deg, ${colors.primary}, ${colors.secondary})`
+                              }}
+                            />
+                          </div>
+
+                          {renderStatus !== 'done' && renderStatus !== 'error' && (
+                            <button
+                              onClick={stopRendering}
+                              className="w-full py-2 rounded-lg bg-red-500/30 hover:bg-red-500/40 text-red-200 text-xs font-medium transition-all"
+                            >
+                              ❌ Cancelar
+                            </button>
+                          )}
                         </div>
+                        
                         <p className="text-[10px] text-white/40 text-center">
-                          Formato: WebM (compatível com todos os editores)
+                          {renderStatus === 'rendering' && 'Renderizando frames...'}
+                          {renderStatus === 'encoding' && 'Codificando vídeo...'}
+                          {renderStatus === 'done' && 'Vídeo salvo com sucesso!'}
+                          {renderStatus === 'error' && 'Erro na renderização'}
                         </p>
                       </div>
                     )}
@@ -1695,10 +1897,21 @@ function App() {
                           <span className="text-lg">🎬</span>
                           <div>
                             <p className="text-xs font-medium text-white/80">WebM Video</p>
-                            <p className="text-[10px] text-white/40">Vídeo com áudio (30 FPS, 5 Mbps)</p>
+                            <p className="text-[10px] text-white/40">Renderização offline (até 4K, 60 FPS, 8 Mbps)</p>
                           </div>
                         </div>
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-white/10 pt-4">
+                    <h4 className="text-xs font-medium text-white/70 mb-2">💡 Dicas</h4>
+                    <div className="space-y-1.5 text-[11px] text-white/50">
+                      <p>• Renderização offline = qualidade máxima</p>
+                      <p>• Use arquivos de áudio (não microfone)</p>
+                      <p>• 1080p @ 30fps recomendado para YouTube</p>
+                      <p>• 4K @ 60fps para máxima qualidade</p>
+                      <p>• Formato WebM compatível com editores</p>
                     </div>
                   </div>
 
