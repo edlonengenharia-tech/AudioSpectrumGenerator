@@ -45,11 +45,68 @@ const VIS_MODES: { id: VisMode; name: string; icon: string }[] = [
   { id: 'lightning', name: 'Lightning', icon: '⚡' },
 ];
 
-const FONTS = [
+const DEFAULT_FONTS = [
   'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Courier New',
   'Verdana', 'Impact', 'Comic Sans MS', 'Trebuchet MS', 'Palatino',
-  'Garamond', 'Bookman', 'Tahoma', 'Lucida Console', 'Monaco'
+  'Garamond', 'Bookman', 'Tahoma', 'Lucida Console', 'Monaco',
+  'Segoe UI', 'Roboto', 'Open Sans', 'Montserrat', 'Lato',
+  'Poppins', 'Oswald', 'Raleway', 'Nunito', 'Ubuntu',
+  'PT Sans', 'Source Sans Pro', 'Fira Code', 'JetBrains Mono', 'Consolas'
 ];
+
+interface VisualSettings {
+  barCount: number;
+  barWidth: number;
+  barSpacing: number;
+  barRadius: number;
+  reflection: boolean;
+  mirror: boolean;
+  rotation: number;
+  zoom: number;
+  glowIntensity: number;
+  blurAmount: number;
+  backgroundOpacity: number;
+  vignette: boolean;
+  gridLines: boolean;
+  particleCount: number;
+  waveLayers: number;
+  circularRings: number;
+  speed: number;
+  blendMode: string;
+  backgroundColor1: string;
+  backgroundColor2: string;
+  strokeEnabled: boolean;
+  strokeWidth: number;
+  strokeColor: string;
+  gradientType: string;
+}
+
+const DEFAULT_VISUAL_SETTINGS: VisualSettings = {
+  barCount: 128,
+  barWidth: 80,
+  barSpacing: 2,
+  barRadius: 4,
+  reflection: true,
+  mirror: false,
+  rotation: 0,
+  zoom: 100,
+  glowIntensity: 100,
+  blurAmount: 0,
+  backgroundOpacity: 100,
+  vignette: false,
+  gridLines: false,
+  particleCount: 500,
+  waveLayers: 3,
+  circularRings: 180,
+  speed: 100,
+  blendMode: 'normal',
+  backgroundColor1: '#1a1a3e',
+  backgroundColor2: '#0a0a1a',
+  strokeEnabled: false,
+  strokeWidth: 2,
+  strokeColor: '#ffffff',
+  gradientType: 'vertical',
+};
 
 const ANIMATIONS = [
   { id: 'none', name: 'Nenhuma' },
@@ -92,6 +149,11 @@ function App() {
   const [templateCategory, setTemplateCategory] = useState('all');
   const [showSidebar, setShowSidebar] = useState(true);
   const [exportStatus, setExportStatus] = useState<'idle' | 'exporting' | 'success' | 'error'>('idle');
+  const [visualSettings, setVisualSettings] = useState<VisualSettings>(DEFAULT_VISUAL_SETTINGS);
+  const [systemFonts, setSystemFonts] = useState<string[]>(DEFAULT_FONTS);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
@@ -99,6 +161,10 @@ function App() {
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const recordingIntervalRef = useRef<number | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const initAudioContext = useCallback(() => {
     if (!audioContextRef.current) {
@@ -237,6 +303,25 @@ function App() {
       audioElementRef.current.loop = isLoop;
     }
   }, [isLoop]);
+
+  // Detect system fonts
+  useEffect(() => {
+    const detectFonts = async () => {
+      try {
+        // Try to use the Local Font Access API (Chrome/Edge)
+        if ('queryLocalFonts' in window) {
+          const fonts = await (window as any).queryLocalFonts();
+          const fontNames = Array.from(new Set(fonts.map((f: any) => f.family))).sort() as string[];
+          if (fontNames.length > 0) {
+            setSystemFonts([...DEFAULT_FONTS, ...fontNames.filter((f: string) => !DEFAULT_FONTS.includes(f))]);
+          }
+        }
+      } catch (error) {
+        console.log('Font detection not available, using default fonts');
+      }
+    };
+    detectFonts();
+  }, []);
 
   const addTextOverlay = () => {
     const newOverlay: TextOverlay = {
@@ -514,6 +599,96 @@ function App() {
   const categories = ['all', ...Array.from(new Set(TEMPLATES.map(t => t.category)))];
   const filteredTemplates = templateCategory === 'all' ? TEMPLATES : TEMPLATES.filter(t => t.category === templateCategory);
 
+  const startRecording = () => {
+    const canvas = document.querySelector('canvas');
+    if (!canvas) {
+      alert('Canvas não encontrado');
+      return;
+    }
+
+    canvasRef.current = canvas;
+    recordedChunksRef.current = [];
+
+    // Capture canvas stream
+    const canvasStream = canvas.captureStream(30); // 30 FPS
+
+    // If we have audio, combine audio and video streams
+    let combinedStream = canvasStream;
+    if (audioContextRef.current && sourceRef.current) {
+      const audioDestination = audioContextRef.current.createMediaStreamDestination();
+      sourceRef.current.connect(audioDestination);
+      
+      const audioStream = audioDestination.stream;
+      combinedStream = new MediaStream([
+        ...canvasStream.getVideoTracks(),
+        ...audioStream.getAudioTracks()
+      ]);
+    }
+
+    // Determine supported MIME type
+    let mimeType = 'video/webm;codecs=vp9,opus';
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      mimeType = 'video/webm;codecs=vp8,opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'video/webm';
+      }
+    }
+
+    const mediaRecorder = new MediaRecorder(combinedStream, {
+      mimeType,
+      videoBitsPerSecond: 5000000 // 5 Mbps
+    });
+
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        recordedChunksRef.current.push(event.data);
+      }
+    };
+
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `audio-spectrum-${Date.now()}.webm`;
+      link.href = url;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 1000);
+    };
+
+    mediaRecorder.start(1000); // Collect data every second
+    mediaRecorderRef.current = mediaRecorder;
+    setIsRecording(true);
+    setRecordingTime(0);
+
+    // Start timer
+    recordingIntervalRef.current = window.setInterval(() => {
+      setRecordingTime(prev => prev + 1);
+    }, 1000);
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current);
+      recordingIntervalRef.current = null;
+    }
+    setIsRecording(false);
+    setRecordingTime(0);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-[#0a0a1a]">
       {/* Header */}
@@ -576,6 +751,13 @@ function App() {
             </div>
           )}
 
+          {isRecording && (
+            <div className="flex items-center gap-1 ml-2 px-2 py-1 rounded-lg bg-red-500/20 border border-red-500/50">
+              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-[10px] text-red-400 font-mono">{formatTime(recordingTime)}</span>
+            </div>
+          )}
+
           <button
             onClick={() => setShowSidebar(!showSidebar)}
             className="p-1.5 rounded-lg glass-light hover:bg-white/10 text-white/70 ml-2"
@@ -602,6 +784,7 @@ function App() {
             audioLevel={audioLevel}
             backgroundImage={backgroundImage}
             textOverlays={textOverlays}
+            visualSettings={visualSettings}
           />
 
           {/* Visualizer Mode Selector Overlay */}
@@ -763,6 +946,17 @@ function App() {
                     </button>
                   </div>
 
+                  {/* Font info */}
+                  <div className="p-2 rounded-lg glass-light">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-white/60">🔤 Fontes disponíveis</span>
+                      <span className="text-[10px] text-purple-300 font-medium">{systemFonts.length} fontes</span>
+                    </div>
+                    {systemFonts.length > DEFAULT_FONTS.length && (
+                      <p className="text-[9px] text-green-400 mt-1">✅ Fontes do sistema detectadas!</p>
+                    )}
+                  </div>
+
                   {/* Text layers list */}
                   <div className="space-y-2">
                     {textOverlays.map(overlay => (
@@ -864,7 +1058,7 @@ function App() {
                             onChange={e => updateTextOverlay(overlay.id, { fontFamily: e.target.value })}
                             className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs focus:border-purple-500/50 focus:outline-none"
                           >
-                            {FONTS.map(f => <option key={f} value={f} style={{ background: '#1a1a3e' }}>{f}</option>)}
+                            {systemFonts.map((f: string) => <option key={f} value={f} style={{ background: '#1a1a3e', fontFamily: f }}>{f}</option>)}
                           </select>
                         </div>
                         <div>
@@ -1046,6 +1240,310 @@ function App() {
                     />
                   </div>
 
+                  {/* Advanced Visual Settings */}
+                  <div className="border-t border-white/10 pt-4">
+                    <button
+                      onClick={() => setShowAdvanced(!showAdvanced)}
+                      className="w-full flex items-center justify-between p-2 rounded-lg glass-light hover:bg-white/10 transition-all"
+                    >
+                      <span className="text-xs font-medium text-white/80">🎨 Configurações Visuais Avançadas</span>
+                      <span className="text-white/60">{showAdvanced ? '▼' : '▶'}</span>
+                    </button>
+
+                    {showAdvanced && (
+                      <div className="mt-3 space-y-3">
+                        {/* Bars Settings */}
+                        <div className="space-y-2">
+                          <h4 className="text-[11px] font-medium text-white/70">Barras</h4>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Quantidade: {visualSettings.barCount}</label>
+                            <input
+                              type="range"
+                              min="32"
+                              max="256"
+                              value={visualSettings.barCount}
+                              onChange={e => setVisualSettings({ ...visualSettings, barCount: Number(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Largura: {visualSettings.barWidth}%</label>
+                            <input
+                              type="range"
+                              min="20"
+                              max="100"
+                              value={visualSettings.barWidth}
+                              onChange={e => setVisualSettings({ ...visualSettings, barWidth: Number(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Espaçamento: {visualSettings.barSpacing}px</label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="10"
+                              value={visualSettings.barSpacing}
+                              onChange={e => setVisualSettings({ ...visualSettings, barSpacing: Number(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Raio: {visualSettings.barRadius}px</label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="20"
+                              value={visualSettings.barRadius}
+                              onChange={e => setVisualSettings({ ...visualSettings, barRadius: Number(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Effects */}
+                        <div className="space-y-2 border-t border-white/10 pt-3">
+                          <h4 className="text-[11px] font-medium text-white/70">Efeitos</h4>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Intensidade do Glow: {visualSettings.glowIntensity}%</label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="200"
+                              value={visualSettings.glowIntensity}
+                              onChange={e => setVisualSettings({ ...visualSettings, glowIntensity: Number(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Blur: {visualSettings.blurAmount}px</label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="10"
+                              value={visualSettings.blurAmount}
+                              onChange={e => setVisualSettings({ ...visualSettings, blurAmount: Number(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Velocidade: {visualSettings.speed}%</label>
+                            <input
+                              type="range"
+                              min="10"
+                              max="300"
+                              value={visualSettings.speed}
+                              onChange={e => setVisualSettings({ ...visualSettings, speed: Number(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Transform */}
+                        <div className="space-y-2 border-t border-white/10 pt-3">
+                          <h4 className="text-[11px] font-medium text-white/70">Transformação</h4>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Rotação: {visualSettings.rotation}°</label>
+                            <input
+                              type="range"
+                              min="-180"
+                              max="180"
+                              value={visualSettings.rotation}
+                              onChange={e => setVisualSettings({ ...visualSettings, rotation: Number(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Zoom: {visualSettings.zoom}%</label>
+                            <input
+                              type="range"
+                              min="50"
+                              max="200"
+                              value={visualSettings.zoom}
+                              onChange={e => setVisualSettings({ ...visualSettings, zoom: Number(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Toggles */}
+                        <div className="space-y-2 border-t border-white/10 pt-3">
+                          <h4 className="text-[11px] font-medium text-white/70">Opções</h4>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-white/60">Reflexo</span>
+                            <button
+                              onClick={() => setVisualSettings({ ...visualSettings, reflection: !visualSettings.reflection })}
+                              className={`w-10 h-5 rounded-full transition-all ${visualSettings.reflection ? 'bg-purple-500' : 'bg-white/20'}`}
+                            >
+                              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${visualSettings.reflection ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                            </button>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-white/60">Vinheta</span>
+                            <button
+                              onClick={() => setVisualSettings({ ...visualSettings, vignette: !visualSettings.vignette })}
+                              className={`w-10 h-5 rounded-full transition-all ${visualSettings.vignette ? 'bg-purple-500' : 'bg-white/20'}`}
+                            >
+                              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${visualSettings.vignette ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                            </button>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-white/60">Linhas de Grid</span>
+                            <button
+                              onClick={() => setVisualSettings({ ...visualSettings, gridLines: !visualSettings.gridLines })}
+                              className={`w-10 h-5 rounded-full transition-all ${visualSettings.gridLines ? 'bg-purple-500' : 'bg-white/20'}`}
+                            >
+                              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${visualSettings.gridLines ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                            </button>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-white/60">Contorno</span>
+                            <button
+                              onClick={() => setVisualSettings({ ...visualSettings, strokeEnabled: !visualSettings.strokeEnabled })}
+                              className={`w-10 h-5 rounded-full transition-all ${visualSettings.strokeEnabled ? 'bg-purple-500' : 'bg-white/20'}`}
+                            >
+                              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${visualSettings.strokeEnabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Stroke Settings */}
+                        {visualSettings.strokeEnabled && (
+                          <div className="space-y-2 border-t border-white/10 pt-3">
+                            <h4 className="text-[11px] font-medium text-white/70">Contorno</h4>
+                            <div>
+                              <label className="text-[10px] text-white/50 block mb-1">Espessura: {visualSettings.strokeWidth}px</label>
+                              <input
+                                type="range"
+                                min="1"
+                                max="10"
+                                value={visualSettings.strokeWidth}
+                                onChange={e => setVisualSettings({ ...visualSettings, strokeWidth: Number(e.target.value) })}
+                                className="w-full"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-white/50 block mb-1">Cor</label>
+                              <input
+                                type="color"
+                                value={visualSettings.strokeColor}
+                                onChange={e => setVisualSettings({ ...visualSettings, strokeColor: e.target.value })}
+                                className="w-full h-8 rounded cursor-pointer bg-transparent"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Background Settings */}
+                        <div className="space-y-2 border-t border-white/10 pt-3">
+                          <h4 className="text-[11px] font-medium text-white/70">Background</h4>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Opacidade: {visualSettings.backgroundOpacity}%</label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              value={visualSettings.backgroundOpacity}
+                              onChange={e => setVisualSettings({ ...visualSettings, backgroundOpacity: Number(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Tipo de Gradiente</label>
+                            <select
+                              value={visualSettings.gradientType}
+                              onChange={e => setVisualSettings({ ...visualSettings, gradientType: e.target.value })}
+                              className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs"
+                            >
+                              <option value="radial" style={{ background: '#1a1a3e' }}>Radial</option>
+                              <option value="linear" style={{ background: '#1a1a3e' }}>Linear</option>
+                            </select>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[10px] text-white/50 block mb-1">Cor 1</label>
+                              <input
+                                type="color"
+                                value={visualSettings.backgroundColor1}
+                                onChange={e => setVisualSettings({ ...visualSettings, backgroundColor1: e.target.value })}
+                                className="w-full h-8 rounded cursor-pointer bg-transparent"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-white/50 block mb-1">Cor 2</label>
+                              <input
+                                type="color"
+                                value={visualSettings.backgroundColor2}
+                                onChange={e => setVisualSettings({ ...visualSettings, backgroundColor2: e.target.value })}
+                                className="w-full h-8 rounded cursor-pointer bg-transparent"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Mode-specific settings */}
+                        {(visMode === 'particles' || visMode === 'galaxy') && (
+                          <div className="space-y-2 border-t border-white/10 pt-3">
+                            <h4 className="text-[11px] font-medium text-white/70">Partículas</h4>
+                            <div>
+                              <label className="text-[10px] text-white/50 block mb-1">Quantidade: {visualSettings.particleCount}</label>
+                              <input
+                                type="range"
+                                min="100"
+                                max="1000"
+                                value={visualSettings.particleCount}
+                                onChange={e => setVisualSettings({ ...visualSettings, particleCount: Number(e.target.value) })}
+                                className="w-full"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {visMode === 'wave' && (
+                          <div className="space-y-2 border-t border-white/10 pt-3">
+                            <h4 className="text-[11px] font-medium text-white/70">Ondas</h4>
+                            <div>
+                              <label className="text-[10px] text-white/50 block mb-1">Camadas: {visualSettings.waveLayers}</label>
+                              <input
+                                type="range"
+                                min="1"
+                                max="10"
+                                value={visualSettings.waveLayers}
+                                onChange={e => setVisualSettings({ ...visualSettings, waveLayers: Number(e.target.value) })}
+                                className="w-full"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {visMode === 'circular' && (
+                          <div className="space-y-2 border-t border-white/10 pt-3">
+                            <h4 className="text-[11px] font-medium text-white/70">Circular</h4>
+                            <div>
+                              <label className="text-[10px] text-white/50 block mb-1">Anéis: {visualSettings.circularRings}</label>
+                              <input
+                                type="range"
+                                min="60"
+                                max="360"
+                                value={visualSettings.circularRings}
+                                onChange={e => setVisualSettings({ ...visualSettings, circularRings: Number(e.target.value) })}
+                                className="w-full"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Reset button */}
+                        <button
+                          onClick={() => setVisualSettings(DEFAULT_VISUAL_SETTINGS)}
+                          className="w-full py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 text-xs transition-all"
+                        >
+                          🔄 Resetar Configurações
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="border-t border-white/10 pt-4 space-y-3">
                     <h4 className="text-xs font-medium text-white/70">Informações</h4>
                     <div className="space-y-1.5">
@@ -1108,6 +1606,7 @@ function App() {
                 <div className="space-y-4">
                   <h3 className="text-sm font-semibold text-white/90">📤 Exportação</h3>
 
+                  {/* Image Export */}
                   <button
                     onClick={exportImage}
                     disabled={exportStatus === 'exporting'}
@@ -1139,33 +1638,64 @@ function App() {
                     </p>
                   </button>
 
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-medium text-white/70">Formatos de Exportação</h4>
+                  {/* Video Recording */}
+                  <div className="border-t border-white/10 pt-4">
+                    <h4 className="text-xs font-medium text-white/70 mb-2">🎬 Gravação de Vídeo</h4>
+                    
+                    {!isRecording ? (
+                      <button
+                        onClick={startRecording}
+                        disabled={!audioSource}
+                        className="w-full p-4 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 transition-all text-center group disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <div className="text-2xl mb-2">🔴</div>
+                        <p className="text-xs font-medium text-red-300">Iniciar Gravação</p>
+                        <p className="text-[10px] text-white/40 mt-1">
+                          {audioSource ? 'Gravar visualização com áudio' : 'Carregue um áudio primeiro'}
+                        </p>
+                      </button>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="p-3 rounded-xl bg-red-500/20 border border-red-500/50">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                              <span className="text-xs font-medium text-red-300">Gravando...</span>
+                            </div>
+                            <span className="text-xs font-mono text-white/80">{formatTime(recordingTime)}</span>
+                          </div>
+                          <button
+                            onClick={stopRecording}
+                            className="w-full py-2 rounded-lg bg-red-500/30 hover:bg-red-500/40 text-red-200 text-xs font-medium transition-all"
+                          >
+                            ⏹️ Parar e Salvar
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-white/40 text-center">
+                          Formato: WebM (compatível com todos os editores)
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t border-white/10 pt-4 space-y-2">
+                    <h4 className="text-xs font-medium text-white/70">Formatos Suportados</h4>
                     <div className="space-y-2">
+                      <div className="p-3 rounded-xl glass-light">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">📸</span>
+                          <div>
+                            <p className="text-xs font-medium text-white/80">PNG</p>
+                            <p className="text-[10px] text-white/40">Imagem estática 1920x1080</p>
+                          </div>
+                        </div>
+                      </div>
                       <div className="p-3 rounded-xl glass-light">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">🎬</span>
                           <div>
-                            <p className="text-xs font-medium text-white/80">Vídeo MP4</p>
-                            <p className="text-[10px] text-white/40">Gravação da visualização</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-3 rounded-xl glass-light">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">🎞️</span>
-                          <div>
-                            <p className="text-xs font-medium text-white/80">WebM</p>
-                            <p className="text-[10px] text-white/40">Formato web otimizado</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-3 rounded-xl glass-light">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">🖼️</span>
-                          <div>
-                            <p className="text-xs font-medium text-white/80">GIF Animado</p>
-                            <p className="text-[10px] text-white/40">Animação em loop</p>
+                            <p className="text-xs font-medium text-white/80">WebM Video</p>
+                            <p className="text-[10px] text-white/40">Vídeo com áudio (30 FPS, 5 Mbps)</p>
                           </div>
                         </div>
                       </div>
