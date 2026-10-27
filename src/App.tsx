@@ -79,6 +79,14 @@ interface VisualSettings {
   strokeWidth: number;
   strokeColor: string;
   gradientType: string;
+  // Color correction filters
+  brightness: number;
+  contrast: number;
+  saturate: number;
+  hueRotate: number;
+  sepia: number;
+  grayscale: number;
+  invert: number;
 }
 
 const DEFAULT_VISUAL_SETTINGS: VisualSettings = {
@@ -106,6 +114,14 @@ const DEFAULT_VISUAL_SETTINGS: VisualSettings = {
   strokeWidth: 2,
   strokeColor: '#ffffff',
   gradientType: 'vertical',
+  // Color correction defaults
+  brightness: 100,
+  contrast: 100,
+  saturate: 100,
+  hueRotate: 0,
+  sepia: 0,
+  grayscale: 0,
+  invert: 0,
 };
 
 const ANIMATIONS = [
@@ -1616,6 +1632,155 @@ function App() {
                           </div>
                         </div>
 
+                        {/* Color Correction */}
+                        <div className="space-y-2 border-t border-white/10 pt-3">
+                          <h4 className="text-[11px] font-medium text-white/70">🎨 Correção de Cor</h4>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Brilho: {visualSettings.brightness}%</label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="200"
+                              value={visualSettings.brightness}
+                              onChange={e => setVisualSettings({ ...visualSettings, brightness: Number(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Contraste: {visualSettings.contrast}%</label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="200"
+                              value={visualSettings.contrast}
+                              onChange={e => setVisualSettings({ ...visualSettings, contrast: Number(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Saturação: {visualSettings.saturate}%</label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="200"
+                              value={visualSettings.saturate}
+                              onChange={e => setVisualSettings({ ...visualSettings, saturate: Number(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Matiz: {visualSettings.hueRotate}°</label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="360"
+                              value={visualSettings.hueRotate}
+                              onChange={e => setVisualSettings({ ...visualSettings, hueRotate: Number(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Sépia: {visualSettings.sepia}%</label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              value={visualSettings.sepia}
+                              onChange={e => setVisualSettings({ ...visualSettings, sepia: Number(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Escala de Cinza: {visualSettings.grayscale}%</label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              value={visualSettings.grayscale}
+                              onChange={e => setVisualSettings({ ...visualSettings, grayscale: Number(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-white/50 block mb-1">Inverter: {visualSettings.invert}%</label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              value={visualSettings.invert}
+                              onChange={e => setVisualSettings({ ...visualSettings, invert: Number(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                          
+                          {/* Presets */}
+                          <div className="pt-2">
+                            <label className="text-[10px] text-white/50 block mb-1">Presets Rápidos</label>
+                            <div className="grid grid-cols-3 gap-1">
+                              <button
+                                onClick={() => setVisualSettings({ 
+                                  ...visualSettings, 
+                                  brightness: 100, contrast: 100, saturate: 100, 
+                                  hueRotate: 0, sepia: 0, grayscale: 0, invert: 0 
+                                })}
+                                className="py-1 rounded text-[9px] glass-light hover:bg-white/10 text-white/60"
+                              >
+                                Normal
+                              </button>
+                              <button
+                                onClick={() => setVisualSettings({ 
+                                  ...visualSettings, 
+                                  brightness: 110, contrast: 120, saturate: 130, 
+                                  hueRotate: 0, sepia: 0, grayscale: 0, invert: 0 
+                                })}
+                                className="py-1 rounded text-[9px] glass-light hover:bg-white/10 text-white/60"
+                              >
+                                Vibrante
+                              </button>
+                              <button
+                                onClick={() => setVisualSettings({ 
+                                  ...visualSettings, 
+                                  brightness: 90, contrast: 110, saturate: 80, 
+                                  hueRotate: 0, sepia: 40, grayscale: 0, invert: 0 
+                                })}
+                                className="py-1 rounded text-[9px] glass-light hover:bg-white/10 text-white/60"
+                              >
+                                Vintage
+                              </button>
+                              <button
+                                onClick={() => setVisualSettings({ 
+                                  ...visualSettings, 
+                                  brightness: 100, contrast: 100, saturate: 100, 
+                                  hueRotate: 0, sepia: 0, grayscale: 100, invert: 0 
+                                })}
+                                className="py-1 rounded text-[9px] glass-light hover:bg-white/10 text-white/60"
+                              >
+                                P&B
+                              </button>
+                              <button
+                                onClick={() => setVisualSettings({ 
+                                  ...visualSettings, 
+                                  brightness: 110, contrast: 130, saturate: 150, 
+                                  hueRotate: 180, sepia: 0, grayscale: 0, invert: 0 
+                                })}
+                                className="py-1 rounded text-[9px] glass-light hover:bg-white/10 text-white/60"
+                              >
+                                Cyber
+                              </button>
+                              <button
+                                onClick={() => setVisualSettings({ 
+                                  ...visualSettings, 
+                                  brightness: 120, contrast: 90, saturate: 140, 
+                                  hueRotate: 30, sepia: 20, grayscale: 0, invert: 0 
+                                })}
+                                className="py-1 rounded text-[9px] glass-light hover:bg-white/10 text-white/60"
+                              >
+                                Quente
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
                         {/* Mode-specific settings */}
                         {(visMode === 'particles' || visMode === 'galaxy') && (
                           <div className="space-y-2 border-t border-white/10 pt-3">
@@ -1850,18 +2015,26 @@ function App() {
                             if (file) {
                               const reader = new FileReader();
                               reader.onload = (ev) => {
-                                const newOverlay: ImageOverlay = {
-                                  id: Date.now().toString(),
-                                  src: ev.target?.result as string,
-                                  x: 50,
-                                  y: 50,
-                                  width: 20,
-                                  height: 20,
-                                  opacity: 100,
-                                  animated: file.type === 'image/gif',
-                                  loop: true,
+                                const img = new Image();
+                                img.onload = () => {
+                                  const newOverlay: ImageOverlay = {
+                                    id: Date.now().toString(),
+                                    src: ev.target?.result as string,
+                                    x: 50,
+                                    y: 50,
+                                    width: 20,
+                                    height: 20 * (img.naturalHeight / img.naturalWidth),
+                                    opacity: 100,
+                                    animated: file.type === 'image/gif',
+                                    loop: true,
+                                    rotation: 0,
+                                    preserveAspectRatio: true,
+                                    naturalWidth: img.naturalWidth,
+                                    naturalHeight: img.naturalHeight,
+                                  };
+                                  setImageOverlays([...imageOverlays, newOverlay]);
                                 };
-                                setImageOverlays([...imageOverlays, newOverlay]);
+                                img.src = ev.target?.result as string;
                               };
                               reader.readAsDataURL(file);
                             }
@@ -1920,16 +2093,41 @@ function App() {
 
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <label className="text-[9px] text-white/50 block mb-1">Tamanho: {overlay.width}%</label>
+                              <label className="text-[9px] text-white/50 block mb-1">Largura: {overlay.width}%</label>
                               <input
                                 type="range"
                                 min="5"
                                 max="100"
                                 value={overlay.width}
-                                onChange={e => setImageOverlays(imageOverlays.map(o => o.id === overlay.id ? { ...o, width: Number(e.target.value), height: Number(e.target.value) } : o))}
+                                onChange={e => {
+                                  const newWidth = Number(e.target.value);
+                                  setImageOverlays(imageOverlays.map(o => {
+                                    if (o.id !== overlay.id) return o;
+                                    if (o.preserveAspectRatio && o.naturalWidth > 0) {
+                                      const aspectRatio = o.naturalHeight / o.naturalWidth;
+                                      return { ...o, width: newWidth, height: newWidth * aspectRatio };
+                                    }
+                                    return { ...o, width: newWidth };
+                                  }));
+                                }}
                                 className="w-full"
                               />
                             </div>
+                            <div>
+                              <label className="text-[9px] text-white/50 block mb-1">Altura: {overlay.height.toFixed(1)}%</label>
+                              <input
+                                type="range"
+                                min="5"
+                                max="100"
+                                value={overlay.height}
+                                disabled={overlay.preserveAspectRatio}
+                                onChange={e => setImageOverlays(imageOverlays.map(o => o.id === overlay.id ? { ...o, height: Number(e.target.value) } : o))}
+                                className="w-full disabled:opacity-50"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2">
                             <div>
                               <label className="text-[9px] text-white/50 block mb-1">Opacidade: {overlay.opacity}%</label>
                               <input
@@ -1941,6 +2139,33 @@ function App() {
                                 className="w-full"
                               />
                             </div>
+                            <div>
+                              <label className="text-[9px] text-white/50 block mb-1">Rotação: {overlay.rotation}°</label>
+                              <input
+                                type="range"
+                                min="-180"
+                                max="180"
+                                value={overlay.rotation}
+                                onChange={e => setImageOverlays(imageOverlays.map(o => o.id === overlay.id ? { ...o, rotation: Number(e.target.value) } : o))}
+                                className="w-full"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="text-[9px] text-white/60">🔒 Manter Proporção</span>
+                            <button
+                              onClick={() => setImageOverlays(imageOverlays.map(o => o.id === overlay.id ? { 
+                                ...o, 
+                                preserveAspectRatio: !o.preserveAspectRatio,
+                                height: !o.preserveAspectRatio && o.naturalWidth > 0 
+                                  ? o.width * (o.naturalHeight / o.naturalWidth) 
+                                  : o.height
+                              } : o))}
+                              className={`w-10 h-5 rounded-full transition-all ${overlay.preserveAspectRatio ? 'bg-purple-500' : 'bg-white/20'}`}
+                            >
+                              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${overlay.preserveAspectRatio ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                            </button>
                           </div>
                         </div>
                       ))}

@@ -34,6 +34,14 @@ interface VisualizerProps {
     strokeWidth: number;
     strokeColor: string;
     gradientType: string;
+    // Color correction filters
+    brightness: number;
+    contrast: number;
+    saturate: number;
+    hueRotate: number;
+    sepia: number;
+    grayscale: number;
+    invert: number;
   };
   // Environmental effects
   environmentalEffects: {
@@ -66,6 +74,10 @@ export interface ImageOverlay {
   opacity: number;
   animated: boolean;
   loop: boolean;
+  rotation: number;
+  preserveAspectRatio: boolean;
+  naturalWidth: number;
+  naturalHeight: number;
 }
 
 export interface TextOverlay {
@@ -181,6 +193,20 @@ const Visualizer: React.FC<VisualizerProps> = ({
     ctx.clearRect(0, 0, width, height);
 
     // Background
+    // Apply color correction filters
+    const hasColorFilters = 
+      visualSettings.brightness !== 100 ||
+      visualSettings.contrast !== 100 ||
+      visualSettings.saturate !== 100 ||
+      visualSettings.hueRotate !== 0 ||
+      visualSettings.sepia !== 0 ||
+      visualSettings.grayscale !== 0 ||
+      visualSettings.invert !== 0;
+    
+    if (hasColorFilters) {
+      ctx.filter = `brightness(${visualSettings.brightness}%) contrast(${visualSettings.contrast}%) saturate(${visualSettings.saturate}%) hue-rotate(${visualSettings.hueRotate}deg) sepia(${visualSettings.sepia}%) grayscale(${visualSettings.grayscale}%) invert(${visualSettings.invert}%)`;
+    }
+    
     if (backgroundImage && bgLoadedRef.current && bgImageRef.current) {
       ctx.globalAlpha = visualSettings.backgroundOpacity / 100;
       ctx.drawImage(bgImageRef.current, 0, 0, width, height);
@@ -199,6 +225,11 @@ const Visualizer: React.FC<VisualizerProps> = ({
       bgGrad.addColorStop(1, visualSettings.backgroundColor2);
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
+    }
+    
+    // Reset filter after background
+    if (hasColorFilters) {
+      ctx.filter = 'none';
     }
 
     // Grid lines
@@ -1049,10 +1080,26 @@ const Visualizer: React.FC<VisualizerProps> = ({
         const x = (overlay.x / 100) * width;
         const y = (overlay.y / 100) * height;
         const w = (overlay.width / 100) * width;
-        const h = (overlay.height / 100) * height;
+        
+        // Calculate height preserving aspect ratio if enabled
+        let h: number;
+        if (overlay.preserveAspectRatio && overlay.naturalWidth > 0) {
+          const aspectRatio = overlay.naturalHeight / overlay.naturalWidth;
+          h = w * aspectRatio;
+        } else {
+          h = (overlay.height / 100) * height;
+        }
 
         ctx.save();
         ctx.globalAlpha = overlay.opacity / 100;
+        
+        // Apply rotation
+        if (overlay.rotation !== 0) {
+          ctx.translate(x, y);
+          ctx.rotate((overlay.rotation * Math.PI) / 180);
+          ctx.translate(-x, -y);
+        }
+        
         ctx.drawImage(img, x - w / 2, y - h / 2, w, h);
         ctx.restore();
       }
@@ -1118,6 +1165,20 @@ export const renderFrame = (
   ctx.clearRect(0, 0, width, height);
 
   // Background
+  // Apply color correction filters
+  const hasColorFilters = 
+    visualSettings.brightness !== 100 ||
+    visualSettings.contrast !== 100 ||
+    visualSettings.saturate !== 100 ||
+    visualSettings.hueRotate !== 0 ||
+    visualSettings.sepia !== 0 ||
+    visualSettings.grayscale !== 0 ||
+    visualSettings.invert !== 0;
+  
+  if (hasColorFilters) {
+    ctx.filter = `brightness(${visualSettings.brightness}%) contrast(${visualSettings.contrast}%) saturate(${visualSettings.saturate}%) hue-rotate(${visualSettings.hueRotate}deg) sepia(${visualSettings.sepia}%) grayscale(${visualSettings.grayscale}%) invert(${visualSettings.invert}%)`;
+  }
+  
   if (props.backgroundImage && props.bgImage) {
     ctx.globalAlpha = visualSettings.backgroundOpacity / 100;
     ctx.drawImage(props.bgImage, 0, 0, width, height);
@@ -1135,6 +1196,11 @@ export const renderFrame = (
     bgGrad.addColorStop(1, visualSettings.backgroundColor2);
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, width, height);
+  }
+  
+  // Reset filter after background
+  if (hasColorFilters) {
+    ctx.filter = 'none';
   }
 
   // Grid lines
