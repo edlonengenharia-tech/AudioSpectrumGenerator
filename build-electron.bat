@@ -40,18 +40,14 @@ if %errorlevel% neq 0 (
 echo [OK] Build do Vite concluido
 echo.
 
-echo [4/5] Copiando arquivos do Electron...
+echo [4/5] Preparando arquivos do Electron...
 if not exist "dist" (
     echo [ERRO] Pasta dist nao encontrada!
     pause
     exit /b 1
 )
 
-copy /Y "electron-main.js" "dist\main.js" >nul
-if exist "icon.png" (
-    copy /Y "icon.png" "dist\icon.png" >nul
-)
-echo [OK] Arquivos copiados
+echo [OK] Arquivos prontos
 echo.
 
 echo [5/5] Criando executavel Windows...
@@ -59,9 +55,7 @@ echo.
 echo Isso pode levar alguns minutos...
 echo.
 
-cd dist
-call npx electron-builder --win --x64
-cd ..
+call npm run electron:build
 
 if %errorlevel% equ 0 (
     echo.
@@ -71,16 +65,16 @@ if %errorlevel% equ 0 (
     echo.
     echo Executavel disponivel em:
     echo.
-    echo   dist\release\
+    echo   release\
     echo.
     echo Arquivos gerados:
-    echo   - Audio Spectrum Generator Setup X.X.X.exe (Instalador)
-    echo   - win-unpacked\ (Versao portavel)
+    echo   - Audio Spectrum Generator Setup 1.0.0.exe (Instalador)
+    echo   - Audio Spectrum Generator 1.0.0.exe (Versao portavel)
     echo.
 
     set /p choice="Deseja abrir a pasta do executavel? (S/N): "
     if /i "%choice%"=="S" (
-        explorer "dist\release"
+        explorer "release"
     )
 ) else (
     echo.

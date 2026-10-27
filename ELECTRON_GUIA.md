@@ -26,12 +26,12 @@ build-electron.bat
 
 O executável estará em:
 ```
-dist\release\
+release\
 ```
 
 Você vai encontrar:
-- `Audio Spectrum Generator Setup X.X.X.exe` - Instalador
-- `win-unpacked\` - Versão portátil (não precisa instalar)
+- `Audio Spectrum Generator Setup 1.0.0.exe` - Instalador
+- `Audio Spectrum Generator 1.0.0.exe` - Versão portátil (não precisa instalar)
 
 ## 🎨 Sobre o Ícone
 

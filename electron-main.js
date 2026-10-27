@@ -15,8 +15,8 @@ function createWindow() {
         }
     });
 
-    // Carregar o arquivo HTML
-    win.loadFile('dist/index.html');
+    // Carregar o arquivo HTML da pasta dist
+    win.loadFile(path.join(__dirname, 'dist', 'index.html'));
 
     // Remover menu bar
     win.setMenuBarVisibility(false);
