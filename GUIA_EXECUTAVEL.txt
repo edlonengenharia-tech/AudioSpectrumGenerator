@@ -1,0 +1,182 @@
+COMO CRIAR EXECUTAVEL WINDOWS - AUDIO SPECTRUM GENERATOR
+========================================================
+
+METODO RAPIDO (RECOMENDADO)
+----------------------------
+
+PASSO 1: Instalar Pre-requisitos
+
+  A) Instale Rust:
+     - Acesse: https://rustup.rs/
+     - Baixe o arquivo rustup-init.exe
+     - Execute e siga as instrucoes
+     - REINICIE o terminal/PC apos instalar
+     - Verifique: rustc --version
+
+  B) Instale Visual Studio Build Tools:
+     - Acesse: https://visualstudio.microsoft.com/visual-cpp-build-tools/
+     - Baixe e execute o instalador
+     - Na instalacao, marque:
+       * "Desenvolvimento para desktop com C++"
+       * "Windows 10 SDK" (ou versao mais recente)
+     - Aguarde a instalacao (pode demorar)
+
+
+PASSO 2: Executar o Instalador Automatico
+
+  No terminal (PowerShell ou CMD), na pasta do projeto:
+  
+  instalar-tauri.bat
+
+  O script vai automaticamente:
+  - Verificar se Rust esta instalado
+  - Instalar o Tauri
+  - Configurar o projeto
+  - Gerar icones
+  - Perguntar se quer criar o executavel
+
+
+PASSO 3: Criar o Executavel
+
+  Se voce escolheu "N" no passo anterior, execute:
+  
+  build-windows.bat
+
+  OU manualmente:
+  
+  npm run tauri:build
+
+
+PASSO 4: Encontrar o Executavel
+
+  O executavel estara em:
+  
+  src-tauri\target\release\bundle\
+  ├── msi\
+  │   └── Audio Spectrum Generator_1.0.0_x64_en-US.msi
+  └── nsis\
+      └── Audio Spectrum Generator_1.0.0_x64-setup.exe
+
+
+========================================================
+METODO MANUAL (PASSO A PASSO)
+========================================================
+
+1. Instalar Tauri:
+   npm install --save-dev @tauri-apps/cli @tauri-apps/api
+
+2. Inicializar Tauri:
+   npx tauri init
+
+   Responda as perguntas:
+   - App name: Audio Spectrum Generator
+   - Window title: Audio Spectrum Generator
+   - Web assets: ../dist
+   - Dev URL: http://localhost:5173
+   - Namespace: com.audiospectrum
+   - Package manager: cargo
+
+3. Copiar configuracao:
+   copy tauri.conf.json src-tauri\tauri.conf.json
+
+4. Gerar icones:
+   npx tauri icon public\icon-512.png
+
+5. Testar em desenvolvimento:
+   npm run tauri:dev
+
+6. Criar executavel final:
+   npm run tauri:build
+
+
+========================================================
+COMANDOS UTIES
+========================================================
+
+Modo desenvolvimento (com hot-reload):
+  npm run tauri:dev
+
+Build para Windows:
+  npm run tauri:build
+
+Limpar build anterior:
+  cd src-tauri
+  cargo clean
+  cd ..
+
+Build com debug:
+  npx tauri build --debug
+
+
+========================================================
+SOLUCAO DE PROBLEMAS
+========================================================
+
+ERRO: "rustc" nao encontrado
+  -> Reinstale Rust em: https://rustup.rs/
+  -> REINICIE o terminal/PC
+
+ERRO: "cl.exe" nao encontrado
+  -> Instale Visual Studio Build Tools
+  -> Selecione "Desenvolvimento para desktop com C++"
+  -> Reinicie o terminal
+
+ERRO: Permissao negada
+  -> Execute o terminal como Administrador
+
+ERRO: Build muito lento
+  -> Normal na primeira vez (5-15 minutos)
+  -> Proximos builds serao rapidos
+
+ERRO: WebView2 nao encontrado
+  -> Baixe em: https://developer.microsoft.com/en-us/microsoft-edge/webview2/
+
+
+========================================================
+TAMANHO DO EXECUTAVEL
+========================================================
+
+- Executavel standalone: ~5-10 MB
+- Instalador MSI: ~8-15 MB
+- Instalador NSIS: ~7-12 MB
+
+Muito menor que Electron (150+ MB)!
+
+
+========================================================
+CHECKLIST FINAL
+========================================================
+
+[ ] Rust instalado (rustc --version)
+[ ] Visual Studio Build Tools instalado
+[ ] npm install --save-dev @tauri-apps/cli @tauri-apps/api
+[ ] npx tauri init executado
+[ ] tauri.conf.json copiado para src-tauri/
+[ ] Icones gerados
+[ ] npm run tauri:dev funcionando
+[ ] npm run tauri:build gerou o executavel
+
+
+========================================================
+DISTRIBUICAO
+========================================================
+
+Depois de criar o executavel:
+
+1. Pegue o arquivo .msi ou .exe da pasta:
+   src-tauri\target\release\bundle\
+
+2. Distribua para seus usuarios
+
+3. Eles so precisam executar o instalador
+
+4. Nao precisam instalar Node.js, Rust ou qualquer dependencia!
+
+
+========================================================
+MAIS INFORMACOES
+========================================================
+
+- Documentacao Tauri: https://tauri.app/v1/guides/
+- Exemplos: https://github.com/tauri-apps/tauri/tree/dev/examples
+- Comunidade: https://discord.gg/tauri

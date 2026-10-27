@@ -1,15 +1,14 @@
 @echo off
-chcp 65001 >nul
 title Audio Spectrum Generator - Build Windows
 color 0B
 
 echo.
-echo ╔════════════════════════════════════════════════════════════╗
-echo ║  Audio Spectrum Generator - Criando Executavel Windows    ║
-echo ╚════════════════════════════════════════════════════════════╝
+echo ================================================================
+echo   Audio Spectrum Generator - Criando Executavel Windows
+echo ================================================================
 echo.
 
-:: Verificar Node.js
+REM Verificar Node.js
 echo [1/4] Verificando Node.js...
 where node >nul 2>nul
 if %errorlevel% neq 0 (
@@ -21,12 +20,14 @@ if %errorlevel% neq 0 (
 echo [OK] Node.js encontrado
 echo.
 
-:: Verificar Rust
+REM Verificar Rust
 echo [2/4] Verificando Rust...
 where rustc >nul 2>nul
 if %errorlevel% neq 0 (
     echo [ERRO] Rust nao encontrado!
     echo Por favor, instale Rust em: https://rustup.rs/
+    echo.
+    echo Abrindo pagina de download...
     start https://rustup.rs/
     pause
     exit /b 1
@@ -34,7 +35,7 @@ if %errorlevel% neq 0 (
 echo [OK] Rust encontrado
 echo.
 
-:: Verificar Tauri
+REM Verificar Tauri
 echo [3/4] Verificando Tauri...
 if not exist "node_modules\@tauri-apps\cli" (
     echo Instalando Tauri CLI...
@@ -48,7 +49,7 @@ if not exist "node_modules\@tauri-apps\cli" (
 echo [OK] Tauri encontrado
 echo.
 
-:: Verificar src-tauri
+REM Verificar src-tauri
 if not exist "src-tauri" (
     echo [ERRO] Tauri nao inicializado!
     echo Execute primeiro: instalar-tauri.bat
@@ -57,40 +58,40 @@ if not exist "src-tauri" (
 )
 echo.
 
-:: Build
+REM Build
 echo [4/4] Criando executavel Windows...
 echo.
 echo Isso pode levar alguns minutos...
 echo.
-call npx tauri build --target x86_64-pc-windows-msvc
+call npx tauri build
 
 if %errorlevel% equ 0 (
     echo.
-    echo ╔════════════════════════════════════════════════════════════╗
-    echo ║  BUILD CONCLUIDO COM SUCESSO!                             ║
-    echo ╚════════════════════════════════════════════════════════════╝
+    echo ================================================================
+    echo   BUILD CONCLUIDO COM SUCESSO!
+    echo ================================================================
     echo.
     echo Executavel disponivel em:
     echo.
     echo Instalador MSI:
-    echo   src-tauri\target\x86_64-pc-windows-msvc\release\bundle\msis\
+    echo   src-tauri\target\release\bundle\msi\
     echo.
     echo Instalador NSIS:
-    echo   src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\
+    echo   src-tauri\target\release\bundle\nsis\
     echo.
     echo Executavel standalone:
-    echo   src-tauri\target\x86_64-pc-windows-msvc\release\
+    echo   src-tauri\target\release\
     echo.
-    
+
     set /p choice="Deseja abrir a pasta do executavel? (S/N): "
     if /i "%choice%"=="S" (
-        explorer "src-tauri\target\x86_64-pc-windows-msvc\release\bundle"
+        explorer "src-tauri\target\release\bundle"
     )
 ) else (
     echo.
-    echo ╔════════════════════════════════════════════════════════════╗
-    echo ║  ERRO NO BUILD                                            ║
-    echo ╚════════════════════════════════════════════════════════════╝
+    echo ================================================================
+    echo   ERRO NO BUILD
+    echo ================================================================
     echo.
     echo Possiveis solucoes:
     echo.

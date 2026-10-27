@@ -1,21 +1,21 @@
 @echo off
-chcp 65001 >nul
 title Audio Spectrum Generator - Instalador Tauri
 color 0A
 
 echo.
-echo ╔════════════════════════════════════════════════════════════╗
-echo ║  Audio Spectrum Generator - Instalador Tauri para Windows ║
-echo ║                                                           ║
-echo ║  Este script ira:                                         ║
-echo ║  1. Verificar dependencias                                ║
-echo ║  2. Instalar Tauri CLI                                    ║
-echo ║  3. Configurar o projeto                                  ║
-echo ║  4. Compilar o executavel                                 ║
-echo ╚════════════════════════════════════════════════════════════╝
+echo ================================================================
+echo   Audio Spectrum Generator - Instalador Tauri para Windows
+echo ================================================================
+echo.
+echo   Este script ira:
+echo   1. Verificar dependencias
+echo   2. Instalar Tauri CLI
+echo   3. Configurar o projeto
+echo   4. Compilar o executavel
+echo ================================================================
 echo.
 
-:: Verificar Node.js
+REM Verificar Node.js
 echo [1/6] Verificando Node.js...
 where node >nul 2>nul
 if %errorlevel% neq 0 (
@@ -28,7 +28,7 @@ for /f "tokens=*" %%i in ('node --version') do set NODE_VERSION=%%i
 echo [OK] Node.js %NODE_VERSION% encontrado
 echo.
 
-:: Verificar Rust
+REM Verificar Rust
 echo [2/6] Verificando Rust...
 where rustc >nul 2>nul
 if %errorlevel% neq 0 (
@@ -39,6 +39,7 @@ if %errorlevel% neq 0 (
     echo 2. Baixe e execute o instalador
     echo 3. Reinicie este script
     echo.
+    echo Abrindo pagina de download...
     start https://rustup.rs/
     pause
     exit /b 1
@@ -47,7 +48,7 @@ for /f "tokens=*" %%i in ('rustc --version') do set RUST_VERSION=%%i
 echo [OK] %RUST_VERSION% encontrado
 echo.
 
-:: Verificar Cargo
+REM Verificar Cargo
 echo [3/6] Verificando Cargo...
 where cargo >nul 2>nul
 if %errorlevel% neq 0 (
@@ -59,7 +60,7 @@ if %errorlevel% neq 0 (
 echo [OK] Cargo encontrado
 echo.
 
-:: Instalar dependencias npm
+REM Instalar dependencias npm
 echo [4/6] Instalando dependencias do Tauri...
 call npm install --save-dev @tauri-apps/cli @tauri-apps/api
 if %errorlevel% neq 0 (
@@ -70,7 +71,7 @@ if %errorlevel% neq 0 (
 echo [OK] Dependencias instaladas
 echo.
 
-:: Verificar se src-tauri existe
+REM Verificar se src-tauri existe
 if not exist "src-tauri" (
     echo [5/6] Inicializando Tauri...
     echo.
@@ -93,7 +94,7 @@ if not exist "src-tauri" (
 )
 echo.
 
-:: Copiar configuracao
+REM Copiar configuracao
 echo [6/6] Configurando projeto...
 if exist "tauri.conf.json" (
     copy /Y "tauri.conf.json" "src-tauri\tauri.conf.json" >nul
@@ -104,7 +105,7 @@ if exist "tauri.conf.json" (
 )
 echo.
 
-:: Gerar icones
+REM Gerar icones
 echo Gerando icones...
 if exist "public\icon-512.png" (
     if not exist "src-tauri\icons" mkdir src-tauri\icons
@@ -117,9 +118,9 @@ if exist "public\icon-512.png" (
 )
 echo.
 
-echo ╔════════════════════════════════════════════════════════════╗
-echo ║  Instalacao concluida com sucesso!                        ║
-echo ╚════════════════════════════════════════════════════════════╝
+echo ================================================================
+echo   Instalacao concluida com sucesso!
+echo ================================================================
 echo.
 echo Proximos passos:
 echo.
@@ -132,7 +133,7 @@ echo.
 echo 3. O executavel sera gerado em:
 echo    src-tauri\target\release\bundle\
 echo.
-echo ════════════════════════════════════════════════════════════
+echo ================================================================
 echo.
 
 set /p choice="Deseja criar o executavel agora? (S/N): "
@@ -144,9 +145,9 @@ if /i "%choice%"=="S" (
     call npm run tauri:build
     if %errorlevel% equ 0 (
         echo.
-        echo ╔════════════════════════════════════════════════════════════╗
-        echo ║  BUILD CONCLUIDO COM SUCESSO!                             ║
-        echo ╚════════════════════════════════════════════════════════════╝
+        echo ================================================================
+        echo   BUILD CONCLUIDO COM SUCESSO!
+        echo ================================================================
         echo.
         echo Executavel disponivel em:
         echo src-tauri\target\release\bundle\
