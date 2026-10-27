@@ -646,25 +646,26 @@ function App() {
         });
       }
 
-      // Get audio data
-      const audioBuffer = await getAudioBuffer();
-      if (!audioBuffer) throw new Error('Não foi possível obter os dados de áudio');
-
       // Calculate frames
       const totalFrames = Math.ceil(audioDuration * renderFPS);
       const frameDuration = 1 / renderFPS;
-      const frequencyData = new Uint8Array(1024);
-      const timeData = new Uint8Array(1024);
 
       // Create audio element for playback during recording
       const audioForRecording = new Audio(audioElementRef.current?.src || '');
       audioForRecording.crossOrigin = 'anonymous';
       
-      // Create audio context for mixing
+      // Create audio context for mixing and analysis
       const recordingAudioCtx = new AudioContext();
       const audioSource = recordingAudioCtx.createMediaElementSource(audioForRecording);
+      
+      // Create analyser for real-time frequency data
+      const recordingAnalyser = recordingAudioCtx.createAnalyser();
+      recordingAnalyser.fftSize = 2048;
+      recordingAnalyser.smoothingTimeConstant = smoothing / 100;
+      
       const audioDestination = recordingAudioCtx.createMediaStreamDestination();
-      audioSource.connect(audioDestination);
+      audioSource.connect(recordingAnalyser);
+      recordingAnalyser.connect(audioDestination);
       audioSource.connect(recordingAudioCtx.destination); // Also play through speakers
 
       // Setup canvas stream with manual frame capture
@@ -702,6 +703,10 @@ function App() {
       await audioForRecording.play();
       const audioStartTime = performance.now();
 
+      // Create arrays for real-time audio data
+      const realFrequencyData = new Uint8Array(recordingAnalyser.frequencyBinCount);
+      const realTimeData = new Uint8Array(recordingAnalyser.frequencyBinCount);
+
       // Render frames in real-time
       for (let frame = 0; frame < totalFrames; frame++) {
         if (renderCancel) {
@@ -714,31 +719,11 @@ function App() {
 
         const currentTime = frame * frameDuration;
         
-        // Get audio data at this time
-        const sampleIndex = Math.floor(currentTime * audioBuffer.sampleRate);
-        const channelData = audioBuffer.getChannelData(0);
-        
-        // Simple FFT approximation using windowed samples
-        const windowSize = 2048;
-        const startSample = Math.max(0, sampleIndex - windowSize / 2);
-        const endSample = Math.min(channelData.length, startSample + windowSize);
-        
-        // Fill frequency data with simulated values based on audio amplitude
-        for (let i = 0; i < frequencyData.length; i++) {
-          const samplePos = startSample + Math.floor((i / frequencyData.length) * (endSample - startSample));
-          const amplitude = Math.abs(channelData[samplePos] || 0);
-          // Simulate frequency distribution (bass on left, treble on right)
-          const freqFactor = 1 - (i / frequencyData.length) * 0.7;
-          frequencyData[i] = Math.min(255, Math.floor(amplitude * 255 * 3 * freqFactor));
-        }
+        // Get REAL audio data from the analyser (synchronized with playback)
+        recordingAnalyser.getByteFrequencyData(realFrequencyData);
+        recordingAnalyser.getByteTimeDomainData(realTimeData);
 
-        // Fill time data
-        for (let i = 0; i < timeData.length; i++) {
-          const samplePos = startSample + Math.floor((i / timeData.length) * (endSample - startSample));
-          timeData[i] = Math.floor(((channelData[samplePos] || 0) + 1) * 128);
-        }
-
-        // Render frame using the static render function
+        // Render frame using the static render function with REAL audio data
         renderFrame(offscreenCanvas, {
           mode: visMode,
           colors,
@@ -747,8 +732,8 @@ function App() {
           bgImage,
           textOverlays,
           visualSettings,
-          frequencyData,
-          timeData,
+          frequencyData: realFrequencyData,
+          timeData: realTimeData,
           currentTime
         });
 
@@ -812,27 +797,7 @@ function App() {
     setRenderCancel(true);
   };
 
-  const getAudioBuffer = async (): Promise<AudioBuffer | null> => {
-    try {
-      if (audioElementRef.current && audioElementRef.current.src) {
-        // Load audio file
-        const response = await fetch(audioElementRef.current.src);
-        const arrayBuffer = await response.arrayBuffer();
-        const audioCtx = new AudioContext();
-        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-        await audioCtx.close();
-        return audioBuffer;
-      } else if (streamRef.current) {
-        // For microphone, we can't get a buffer, so return null
-        // User should use file audio for rendering
-        return null;
-      }
-      return null;
-    } catch (error) {
-      console.error('Error getting audio buffer:', error);
-      return null;
-    }
-  };
+
 
 
 
