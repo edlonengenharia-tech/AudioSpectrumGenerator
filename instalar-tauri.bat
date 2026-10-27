@@ -16,7 +16,7 @@ echo ================================================================
 echo.
 
 REM Verificar Node.js
-echo [1/6] Verificando Node.js...
+echo [1/7] Verificando Node.js...
 where node >nul 2>nul
 if %errorlevel% neq 0 (
     echo [ERRO] Node.js nao encontrado!
@@ -29,7 +29,7 @@ echo [OK] Node.js %NODE_VERSION% encontrado
 echo.
 
 REM Verificar Rust
-echo [2/6] Verificando Rust...
+echo [2/7] Verificando Rust...
 where rustc >nul 2>nul
 if %errorlevel% neq 0 (
     echo [ERRO] Rust nao encontrado!
@@ -49,7 +49,7 @@ echo [OK] %RUST_VERSION% encontrado
 echo.
 
 REM Verificar Cargo
-echo [3/6] Verificando Cargo...
+echo [3/7] Verificando Cargo...
 where cargo >nul 2>nul
 if %errorlevel% neq 0 (
     echo [ERRO] Cargo nao encontrado!
@@ -60,8 +60,21 @@ if %errorlevel% neq 0 (
 echo [OK] Cargo encontrado
 echo.
 
+REM Verificar/Criar Cargo.toml na raiz
+echo [4/7] Verificando Cargo.toml...
+if not exist "Cargo.toml" (
+    echo Criando Cargo.toml na raiz...
+    echo [workspace] > Cargo.toml
+    echo members = ["src-tauri"] >> Cargo.toml
+    echo resolver = "2" >> Cargo.toml
+    echo [OK] Cargo.toml criado
+) else (
+    echo [OK] Cargo.toml encontrado
+)
+echo.
+
 REM Instalar dependencias npm
-echo [4/6] Instalando dependencias do Tauri...
+echo [5/7] Instalando dependencias do Tauri...
 call npm install --save-dev @tauri-apps/cli @tauri-apps/api
 if %errorlevel% neq 0 (
     echo [ERRO] Falha ao instalar dependencias npm
@@ -73,7 +86,7 @@ echo.
 
 REM Verificar se src-tauri existe
 if not exist "src-tauri" (
-    echo [5/6] Inicializando Tauri...
+    echo [6/7] Inicializando Tauri...
     echo.
     echo Responda as perguntas:
     echo - App name: Audio Spectrum Generator
@@ -90,15 +103,19 @@ if not exist "src-tauri" (
         exit /b 1
     )
 ) else (
-    echo [5/6] Tauri ja inicializado
+    echo [6/7] Tauri ja inicializado
 )
 echo.
 
 REM Copiar configuracao
-echo [6/6] Configurando projeto...
+echo [7/7] Configurando projeto...
 if exist "tauri.conf.json" (
-    copy /Y "tauri.conf.json" "src-tauri\tauri.conf.json" >nul
-    echo [OK] Configuracao copiada
+    if not exist "src-tauri\tauri.conf.json" (
+        copy /Y "tauri.conf.json" "src-tauri\tauri.conf.json" >nul
+        echo [OK] Configuracao copiada
+    ) else (
+        echo [OK] Configuracao ja existe
+    )
 ) else (
     echo [AVISO] Arquivo tauri.conf.json nao encontrado
     echo Configure manualmente: src-tauri\tauri.conf.json
@@ -131,7 +148,7 @@ echo 2. Para criar o executavel final:
 echo    npm run tauri:build
 echo.
 echo 3. O executavel sera gerado em:
-echo    src-tauri\target\release\bundle\
+echo    src-tauri\target\release\
 echo.
 echo ================================================================
 echo.
@@ -150,9 +167,9 @@ if /i "%choice%"=="S" (
         echo ================================================================
         echo.
         echo Executavel disponivel em:
-        echo src-tauri\target\release\bundle\
+        echo src-tauri\target\release\
         echo.
-        explorer "src-tauri\target\release\bundle"
+        explorer "src-tauri\target\release"
     ) else (
         echo.
         echo [ERRO] Falha no build

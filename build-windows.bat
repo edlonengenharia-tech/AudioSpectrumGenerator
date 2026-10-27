@@ -9,7 +9,7 @@ echo ================================================================
 echo.
 
 REM Verificar Node.js
-echo [1/4] Verificando Node.js...
+echo [1/5] Verificando Node.js...
 where node >nul 2>nul
 if %errorlevel% neq 0 (
     echo [ERRO] Node.js nao encontrado!
@@ -21,7 +21,7 @@ echo [OK] Node.js encontrado
 echo.
 
 REM Verificar Rust
-echo [2/4] Verificando Rust...
+echo [2/5] Verificando Rust...
 where rustc >nul 2>nul
 if %errorlevel% neq 0 (
     echo [ERRO] Rust nao encontrado!
@@ -35,8 +35,22 @@ if %errorlevel% neq 0 (
 echo [OK] Rust encontrado
 echo.
 
+REM Verificar Cargo.toml na raiz
+echo [3/5] Verificando configuracao Cargo...
+if not exist "Cargo.toml" (
+    echo [ERRO] Cargo.toml nao encontrado na raiz!
+    echo Criando arquivo...
+    echo [workspace] > Cargo.toml
+    echo members = ["src-tauri"] >> Cargo.toml
+    echo resolver = "2" >> Cargo.toml
+    echo [OK] Cargo.toml criado
+) else (
+    echo [OK] Cargo.toml encontrado
+)
+echo.
+
 REM Verificar Tauri
-echo [3/4] Verificando Tauri...
+echo [4/5] Verificando Tauri...
 if not exist "node_modules\@tauri-apps\cli" (
     echo Instalando Tauri CLI...
     call npm install --save-dev @tauri-apps/cli @tauri-apps/api
@@ -50,8 +64,8 @@ echo [OK] Tauri encontrado
 echo.
 
 REM Verificar src-tauri
-if not exist "src-tauri" (
-    echo [ERRO] Tauri nao inicializado!
+if not exist "src-tauri\Cargo.toml" (
+    echo [ERRO] src-tauri nao configurado!
     echo Execute primeiro: instalar-tauri.bat
     pause
     exit /b 1
@@ -59,11 +73,11 @@ if not exist "src-tauri" (
 echo.
 
 REM Build
-echo [4/4] Criando executavel Windows...
+echo [5/5] Criando executavel Windows...
 echo.
 echo Isso pode levar alguns minutos...
 echo.
-call npx tauri build
+call npm run tauri:build
 
 if %errorlevel% equ 0 (
     echo.
@@ -73,19 +87,19 @@ if %errorlevel% equ 0 (
     echo.
     echo Executavel disponivel em:
     echo.
+    echo PORTABLE (sem instalacao):
+    echo   src-tauri\target\release\Audio Spectrum Generator.exe
+    echo.
     echo Instalador MSI:
     echo   src-tauri\target\release\bundle\msi\
     echo.
     echo Instalador NSIS:
     echo   src-tauri\target\release\bundle\nsis\
     echo.
-    echo Executavel standalone:
-    echo   src-tauri\target\release\
-    echo.
 
     set /p choice="Deseja abrir a pasta do executavel? (S/N): "
     if /i "%choice%"=="S" (
-        explorer "src-tauri\target\release\bundle"
+        explorer "src-tauri\target\release"
     )
 ) else (
     echo.

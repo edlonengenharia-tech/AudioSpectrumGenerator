@@ -1,0 +1,110 @@
+COMO CRIAR O EXECUTAVEL PORTABLE
+=================================
+
+O que e um executavel PORTABLE?
+-------------------------------
+Um arquivo .exe que voce pode copiar para qualquer computador Windows
+e executar diretamente, SEM precisar instalar nada!
+
+
+PASSO 1: Instalar Pre-requisitos
+---------------------------------
+ANTES de executar os scripts, instale:
+
+A) Rust:
+   - Acesse: https://rustup.rs/
+   - Baixe e execute rustup-init.exe
+   - Siga as instrucoes (pressione ENTER para aceitar)
+   - FECH E REABRA o terminal
+
+B) Visual Studio Build Tools:
+   - Acesse: https://visualstudio.microsoft.com/visual-cpp-build-tools/
+   - Baixe e instale
+   - Marque: "Desenvolvimento para desktop com C++"
+   - Marque: "Windows 10 SDK"
+   - Aguarde a instalacao (10-20 minutos)
+
+
+PASSO 2: Executar o Instalador
+-------------------------------
+No terminal, na pasta do projeto, execute:
+
+   instalar-tauri.bat
+
+Este script vai automaticamente:
+- Verificar se Rust esta instalado
+- Instalar o Tauri
+- Configurar o projeto
+- Gerar icones
+- Perguntar se quer criar o executavel
+
+Se voce escolher "S", o executavel sera criado automaticamente!
+
+
+PASSO 3: Encontrar o Executavel Portable
+-----------------------------------------
+Apos o build, o executavel PORTABLE estara em:
+
+   src-tauri\target\release\Audio Spectrum Generator.exe
+
+Este arquivo .exe pode ser:
+- Copiado para qualquer computador Windows
+- Executado diretamente (duplo clique)
+- Nao precisa de instalacao!
+- Nao precisa de Node.js, Rust ou outras dependencias!
+
+
+PASSO 4: (Opcional) Criar Instalador
+-------------------------------------
+Se voce preferir um instalador tradicional, eles tambem estao em:
+
+   src-tauri\target\release\bundle\msi\
+   src-tauri\target\release\bundle\nsis\
+
+
+COMANDO DIRETO (SEM SCRIPT)
+============================
+Se preferir fazer manualmente, execute:
+
+   npm run tauri:build
+
+O executavel sera gerado em:
+   src-tauri\target\release\Audio Spectrum Generator.exe
+
+
+ERROS COMUNS
+============
+
+ERRO: "rustc" nao encontrado
+-> Instale Rust e REINICIE o terminal
+
+ERRO: "cl.exe" nao encontrado
+-> Instale Visual Studio Build Tools com "Desenvolvimento para desktop com C++"
+
+ERRO: Cargo.toml nao encontrado
+-> Execute: instalar-tauri.bat (ele cria automaticamente)
+
+ERRO: Build muito lento
+-> Normal na primeira vez (5-15 minutos)
+-> Proximos builds serao rapidos
+
+
+TAMANHO DO EXECUTAVEL
+=====================
+- Executavel portable: ~5-10 MB
+- Instalador MSI: ~8-15 MB
+- Instalador NSIS: ~7-12 MB
+
+Muito menor que Electron (150+ MB)!
+
+
+RESUMO
+======
+1. Instale Rust e Visual Studio Build Tools
+2. Execute: instalar-tauri.bat
+3. Escolha "S" para criar o executavel
+4. Pegue o arquivo: src-tauri\target\release\Audio Spectrum Generator.exe
+5. Copie para qualquer lugar e execute!
+
+
+PRONTO! Voce tem um executavel portable do Audio Spectrum Generator!
