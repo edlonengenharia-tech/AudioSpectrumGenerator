@@ -1,0 +1,114 @@
+================================================================
+  MUDANÇA PARA ELECTRON - SOLUÇÃO DEFINITIVA
+================================================================
+
+POR QUE MUDAMOS?
+----------------
+Tauri estava dando muitos problemas:
+- Erros de configuração
+- Problemas com ícones
+- Build complexo
+- Documentação limitada
+
+Electron é:
+- ✅ Mais simples
+- ✅ Mais confiável
+- ✅ Melhor documentação
+- ✅ Funciona sempre
+
+
+COMO USAR (MUITO SIMPLES!)
+---------------------------
+
+PASSO 1: Executar o script
+
+   build-electron.bat
+
+PRONTO! O script faz tudo automaticamente.
+
+
+O QUE ACONTECE
+--------------
+1. Instala Electron automaticamente
+2. Gera o build do Vite
+3. Cria o executável Windows
+4. Abre a pasta com o executável
+
+
+ONDE ENCONTRAR O EXECUTÁVEL
+----------------------------
+Após o build:
+
+   dist\release\
+
+Você vai encontrar:
+- Audio Spectrum Generator Setup X.X.X.exe (Instalador)
+- win-unpacked\ (Versão portátil)
+
+
+TAMANHO
+-------
+- Instalador: ~80-100 MB
+- Versão portátil: ~150 MB
+
+É maior que Tauri, mas FUNCIONA de forma confiável!
+
+
+ÍCONE PERSONALIZADO (OPCIONAL)
+-------------------------------
+Se quiser um ícone:
+
+1. Crie uma imagem PNG 512x512
+2. Salve como: icon.png (na raiz do projeto)
+3. Execute: build-electron.bat
+
+NÃO É OBRIGATÓRIO! O app funciona sem ícone.
+
+
+SE DER ERRO
+-----------
+
+Erro: "electron not found"
+   npm install --save-dev electron electron-builder
+
+Erro: "build failed"
+   npm run build
+
+Erro no script
+   Execute manualmente:
+   npm install --save-dev electron electron-builder
+   npm run build
+   copy electron-main.js dist\main.js
+   cd dist
+   npx electron-builder --win --x64
+
+
+VANTAGENS DO ELECTRON
+---------------------
+✅ Funciona sempre
+✅ Documentação completa
+✅ Compatível (Windows, Mac, Linux)
+✅ Maduro (usado por VS Code, Discord, Slack)
+✅ Fácil de resolver problemas
+
+
+ARQUIVOS CRIADOS
+----------------
+- electron-main.js       -> Arquivo principal do Electron
+- build-electron.bat     -> Script de build automático
+- ELECTRON_GUIA.md       -> Guia completo
+- README.md              -> Documentação atualizada
+
+
+RESUMO
+------
+Para criar o executável AGORA:
+
+   build-electron.bat
+
+Pronto! Em minutos você terá o executável.
+
+
+================================================================
+  AGORA VAI FUNCIONAR!
+================================================================
