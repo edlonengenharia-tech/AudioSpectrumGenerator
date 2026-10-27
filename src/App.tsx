@@ -153,7 +153,7 @@ function App() {
   const [systemFonts, setSystemFonts] = useState<string[]>(DEFAULT_FONTS);
   const [isRendering, setIsRendering] = useState(false);
   const [renderProgress, setRenderProgress] = useState(0);
-  const [renderDuration, setRenderDuration] = useState(30);
+  const [audioDuration, setAudioDuration] = useState(0);
   const [renderFPS, setRenderFPS] = useState(30);
   const [renderResolution, setRenderResolution] = useState<'720p' | '1080p' | '4k'>('1080p');
   const [renderStatus, setRenderStatus] = useState<'idle' | 'preparing' | 'rendering' | 'encoding' | 'done' | 'error'>('idle');
@@ -215,6 +215,11 @@ function App() {
     audio.loop = isLoop;
     audioElementRef.current = audio;
 
+    // Detect audio duration
+    audio.addEventListener('loadedmetadata', () => {
+      setAudioDuration(audio.duration);
+    });
+
     const source = ctx.createMediaElementSource(audio);
     const analyserNode = ctx.createAnalyser();
     analyserNode.fftSize = 2048;
@@ -255,6 +260,7 @@ function App() {
     setAudioSource(null);
     setIsPlaying(false);
     setFileName('');
+    setAudioDuration(0);
   }, []);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -655,7 +661,7 @@ function App() {
       source.start();
 
       // Calculate frames
-      const totalFrames = renderDuration * renderFPS;
+      const totalFrames = Math.ceil(audioDuration * renderFPS);
       const frameDuration = 1 / renderFPS;
       const frequencyData = new Uint8Array(analyser.frequencyBinCount);
       const timeData = new Uint8Array(analyser.frequencyBinCount);
@@ -757,7 +763,7 @@ function App() {
       const blob = new Blob(chunks, { type: 'video/webm' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.download = `audio-spectrum-${renderDuration}s-${renderResolution}-${Date.now()}.webm`;
+      link.download = `audio-spectrum-${Math.round(audioDuration)}s-${renderResolution}-${Date.now()}.webm`;
       link.href = url;
       link.style.display = 'none';
       document.body.appendChild(link);
@@ -868,6 +874,11 @@ function App() {
             <div className="flex items-center gap-1 ml-2">
               <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
               <span className="text-[10px] text-green-400">{fileName || 'Microfone'}</span>
+              {audioSource === 'file' && audioDuration > 0 && (
+                <span className="text-[10px] text-white/50 font-mono">
+                  ({Math.floor(audioDuration / 60)}:{Math.floor(audioDuration % 60).toString().padStart(2, '0')})
+                </span>
+              )}
             </div>
           )}
 
@@ -1765,16 +1776,14 @@ function App() {
                     {!isRendering ? (
                       <div className="space-y-3">
                         {/* Duration */}
-                        <div>
-                          <label className="text-[10px] text-white/50 block mb-1">Duração: {renderDuration}s</label>
-                          <input
-                            type="range"
-                            min="5"
-                            max="300"
-                            value={renderDuration}
-                            onChange={e => setRenderDuration(Number(e.target.value))}
-                            className="w-full"
-                          />
+                        <div className="p-3 rounded-lg glass-light">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-white/50">⏱️ Duração do Áudio</span>
+                            <span className="text-xs font-mono text-purple-300">
+                              {audioDuration > 0 ? `${Math.floor(audioDuration / 60)}:${Math.floor(audioDuration % 60).toString().padStart(2, '0')}` : '--:--'}
+                            </span>
+                          </div>
+                          <p className="text-[9px] text-white/40 mt-1">O vídeo terá a mesma duração do áudio</p>
                         </div>
 
                         {/* Resolution */}
@@ -1826,8 +1835,10 @@ function App() {
                           <div className="text-2xl mb-2">🎬</div>
                           <p className="text-xs font-medium text-purple-300">Iniciar Renderização</p>
                           <p className="text-[10px] text-white/40 mt-1">
-                            {audioSource === 'file' 
-                              ? `Renderizar ${renderDuration}s em ${renderResolution} @ ${renderFPS} FPS`
+                            {audioSource === 'file' && audioDuration > 0
+                              ? `Renderizar ${Math.floor(audioDuration / 60)}:${Math.floor(audioDuration % 60).toString().padStart(2, '0')} em ${renderResolution} @ ${renderFPS} FPS`
+                              : audioSource === 'file'
+                              ? 'Carregando áudio...'
                               : 'Carregue um arquivo de áudio'}
                           </p>
                         </button>
